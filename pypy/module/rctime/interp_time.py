@@ -1,6 +1,6 @@
 from rpython.rtyper.tool import rffi_platform as platform
 from rpython.rtyper.lltypesystem import rffi
-from pypy.interpreter.error import OperationError, oefmt
+from pypy.interpreter.error import OperationError, oefmt, strerror as _strerror
 from pypy.interpreter.gateway import unwrap_spec
 from rpython.rtyper.lltypesystem import lltype
 from rpython.rlib.rarithmetic import intmask
@@ -297,9 +297,9 @@ def _init_timezone(space):
     _set_module_object(space, 'tzname', space.newtuple(tzname_w))
     _set_module_object(space, 'altzone', space.wrap(altzone))
 
-def _get_error_msg():
+def _get_error_msg(space):
     errno = rposix.get_errno()
-    return os.strerror(errno)
+    return _strerror(space, errno)
 
 if sys.platform != 'win32':
     @unwrap_spec(secs=float)
@@ -397,7 +397,7 @@ def _gettmarg(space, w_tup, allowNone=True):
         lltype.free(t_ref, flavor='raw')
         if not pbuf:
             raise OperationError(space.w_ValueError,
-                space.wrap(_get_error_msg()))
+                space.wrap(_get_error_msg(space)))
         return pbuf
 
     tup_w = space.fixedview(w_tup)
@@ -577,7 +577,8 @@ def gmtime(space, w_seconds=None):
     lltype.free(t_ref, flavor='raw')
 
     if not p:
-        raise OperationError(space.w_ValueError, space.wrap(_get_error_msg()))
+        raise OperationError(space.w_ValueError,
+                             space.wrap(_get_error_msg(space)))
     return _tm_to_tuple(space, p)
 
 def localtime(space, w_seconds=None):
@@ -594,7 +595,8 @@ def localtime(space, w_seconds=None):
     lltype.free(t_ref, flavor='raw')
 
     if not p:
-        raise OperationError(space.w_ValueError, space.wrap(_get_error_msg()))
+        raise OperationError(space.w_ValueError,
+                             space.wrap(_get_error_msg(space)))
     return _tm_to_tuple(space, p)
 
 def mktime(space, w_tup):

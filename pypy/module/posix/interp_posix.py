@@ -9,7 +9,8 @@ from rpython.rtyper.module import ll_os_stat
 from rpython.rtyper.module.ll_os import RegisterOs
 
 from pypy.interpreter.gateway import unwrap_spec, WrappedDefault
-from pypy.interpreter.error import OperationError, wrap_oserror, wrap_oserror2
+from pypy.interpreter.error import (OperationError, wrap_oserror,
+                                    wrap_oserror2, strerror as _strerror)
 
 
 _WIN32 = sys.platform == 'win32'
@@ -476,11 +477,10 @@ def rmdir(space, w_path):
 def strerror(space, errno):
     """Translate an error code to a message string."""
     try:
-        text = os.strerror(errno)
+        return space.wrap(_strerror(space, errno))
     except ValueError:
         raise OperationError(space.w_ValueError,
                              space.wrap("strerror() argument out of range"))
-    return space.wrap(text)
 
 def getlogin(space):
     """Return the currently logged in user."""
