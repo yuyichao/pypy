@@ -15,7 +15,7 @@ AUTO_DEBUG = os.getenv('PYPY_DEBUG')
 RECORD_INTERPLEVEL_TRACEBACK = True
 
 
-def strerror(space, errno):
+def strerror(errno):
     """Translate an error code to a message string."""
     from pypy.module._codecs.locale import str_decode_locale_surrogateescape
     return str_decode_locale_surrogateescape(os.strerror(errno))
@@ -536,7 +536,7 @@ def wrap_oserror2(space, e, w_filename=None, exception_name='w_OSError',
         space.getexecutioncontext().checksignals()
 
     try:
-        msg = strerror(space, errno)
+        msg = strerror(errno)
     except ValueError:
         msg = u'error %d' % errno
     if w_exception_class is None:
@@ -568,7 +568,7 @@ def exception_from_errno(space, w_type):
     from rpython.rlib.rposix import get_errno
 
     errno = get_errno()
-    msg = strerror(space, errno)
+    msg = strerror(errno)
     w_error = space.call_function(w_type, space.wrap(errno), space.wrap(msg))
     return OperationError(w_type, w_error)
 

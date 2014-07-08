@@ -297,9 +297,9 @@ def _init_timezone(space):
     _set_module_object(space, 'tzname', space.newtuple(tzname_w))
     _set_module_object(space, 'altzone', space.wrap(altzone))
 
-def _get_error_msg(space):
+def _get_error_msg():
     errno = rposix.get_errno()
-    return _strerror(space, errno)
+    return _strerror(errno)
 
 if sys.platform != 'win32':
     @unwrap_spec(secs=float)
@@ -397,7 +397,7 @@ def _gettmarg(space, w_tup, allowNone=True):
         lltype.free(t_ref, flavor='raw')
         if not pbuf:
             raise OperationError(space.w_ValueError,
-                space.wrap(_get_error_msg(space)))
+                                 space.wrap(_get_error_msg()))
         return pbuf
 
     tup_w = space.fixedview(w_tup)
@@ -577,8 +577,7 @@ def gmtime(space, w_seconds=None):
     lltype.free(t_ref, flavor='raw')
 
     if not p:
-        raise OperationError(space.w_ValueError,
-                             space.wrap(_get_error_msg(space)))
+        raise OperationError(space.w_ValueError, space.wrap(_get_error_msg()))
     return _tm_to_tuple(space, p)
 
 def localtime(space, w_seconds=None):
@@ -595,8 +594,7 @@ def localtime(space, w_seconds=None):
     lltype.free(t_ref, flavor='raw')
 
     if not p:
-        raise OperationError(space.w_ValueError,
-                             space.wrap(_get_error_msg(space)))
+        raise OperationError(space.w_ValueError, space.wrap(_get_error_msg()))
     return _tm_to_tuple(space, p)
 
 def mktime(space, w_tup):

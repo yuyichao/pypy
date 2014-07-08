@@ -477,7 +477,7 @@ def rmdir(space, w_path):
 def strerror(space, errno):
     """Translate an error code to a message string."""
     try:
-        return space.wrap(_strerror(space, errno))
+        return space.wrap(_strerror(errno))
     except ValueError:
         raise OperationError(space.w_ValueError,
                              space.wrap("strerror() argument out of range"))
