@@ -169,6 +169,8 @@ class PyCode(eval.Code):
         for const in code.co_consts:
             if isinstance(const, types.CodeType): # from stable compiler
                 const = code_hook(space, const, hidden_applevel, code_hook)
+            if isinstance(const, str):
+                rstring.check_ascii(const)
             newconsts_w[num] = space.wrap(const)
             num += 1
         # stick the underlying CPython magic value, if the code object
@@ -293,13 +295,16 @@ class PyCode(eval.Code):
         return space.newtuple(self.co_names_w)
 
     def fget_co_varnames(self, space):
-        return space.newtuple([space.wrap(name) for name in self.co_varnames])
+        return space.newtuple([space.wrap(name.decode('utf-8'))
+                               for name in self.co_varnames])
 
     def fget_co_cellvars(self, space):
-        return space.newtuple([space.wrap(name) for name in self.co_cellvars])
+        return space.newtuple([space.wrap(name.decode('utf-8'))
+                               for name in self.co_cellvars])
 
     def fget_co_freevars(self, space):
-        return space.newtuple([space.wrap(name) for name in self.co_freevars])
+        return space.newtuple([space.wrap(name.decode('utf-8'))
+                               for name in self.co_freevars])
 
     def descr_code__eq__(self, w_other):
         space = self.space
@@ -361,16 +366,19 @@ class PyCode(eval.Code):
                           magic=default_magic):
         if argcount < 0:
             raise OperationError(space.w_ValueError,
-                                 space.wrap("code: argcount must not be negative"))
+                                 space.wrap(u"code: argcount must "
+                                            "not be negative"))
         if kwonlyargcount < 0:
             raise OperationError(space.w_ValueError,
-                                 space.wrap("code: kwonlyargcount must not be negative"))
+                                 space.wrap(u"code: kwonlyargcount must "
+                                            "not be negative"))
         if nlocals < 0:
             raise OperationError(space.w_ValueError,
-                                 space.wrap("code: nlocals must not be negative"))
+                                 space.wrap(u"code: nlocals must "
+                                            "not be negative"))
         if not space.isinstance_w(w_constants, space.w_tuple):
             raise OperationError(space.w_TypeError,
-                                 space.wrap("Expected tuple for constants"))
+                                 space.wrap(u"Expected tuple for constants"))
         consts_w = space.fixedview(w_constants)
         names = unpack_str_tuple(space, w_names)
         varnames = unpack_str_tuple(space, w_varnames)
@@ -393,6 +401,20 @@ class PyCode(eval.Code):
         mod      = space.interp_w(MixedModule, w_mod)
         new_inst = mod.get('code_new')
         w        = space.wrap
+        if isinstance(self.co_argcount, str):
+            rstring.check_ascii(self.co_argcount)
+        if isinstance(self.co_kwonlyargcount, str):
+            rstring.check_ascii(self.co_kwonlyargcount)
+        if isinstance(self.co_nlocals, str):
+            rstring.check_ascii(self.co_nlocals)
+        if isinstance(self.co_stacksize, str):
+            rstring.check_ascii(self.co_stacksize)
+        if isinstance(self.co_flags, str):
+            rstring.check_ascii(self.co_flags)
+        if isinstance(self.co_firstlineno, str):
+            rstring.check_ascii(self.co_firstlineno)
+        if isinstance(self.magic, str):
+            rstring.check_ascii(self.magic)
         tup      = [
             w(self.co_argcount),
             w(self.co_kwonlyargcount),
@@ -402,13 +424,13 @@ class PyCode(eval.Code):
             space.wrapbytes(self.co_code),
             space.newtuple(self.co_consts_w),
             space.newtuple(self.co_names_w),
-            space.newtuple([w(v) for v in self.co_varnames]),
-            w(self.co_filename),
-            w(self.co_name),
+            self.fget_co_varnames(space),
+            space.fsdecode(space.wrapbytes(self.co_filename)),
+            w(self.co_name.decode('utf-8')),
             w(self.co_firstlineno),
             space.wrapbytes(self.co_lnotab),
-            space.newtuple([w(v) for v in self.co_freevars]),
-            space.newtuple([w(v) for v in self.co_cellvars]),
+            self.fget_co_freevars(space),
+            self.fget_co_cellvars(space),
             w(self.magic),
         ]
         return space.newtuple([new_inst, space.newtuple(tup)])
