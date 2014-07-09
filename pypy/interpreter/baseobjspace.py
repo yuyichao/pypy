@@ -1453,7 +1453,7 @@ class ObjSpace(object):
         """
         if w_obj is unicode, call identifier_w() (i.e., return the UTF-8
         encoded string). Else, call bytes_w().
-        
+
         Maybe we should kill str_w completely and manually substitute it with
         identifier_w/bytes_w at all call sites?
         """

@@ -1,3 +1,4 @@
+from rpython.rlib.rstring import check_ascii
 
 class SyntaxError(Exception):
     """Base class for exceptions raised by the parser."""
@@ -16,10 +17,18 @@ class SyntaxError(Exception):
         if self.text is not None:
             from rpython.rlib.runicode import str_decode_utf_8
             # self.text may not be UTF-8 in case of decoding errors
-            w_text = space.wrap(str_decode_utf_8(self.text, len(self.text),
-                                                 'replace')[0])
+            text = str_decode_utf_8(self.text, len(self.text), 'replace')[0]
+            if isinstance(text, str):
+                check_ascii(text)
+            w_text = space.wrap(text)
         if self.filename is not None:
             w_filename = space.fsdecode(space.wrapbytes(self.filename))
+        if isinstance(self.lineno, str):
+            check_ascii(self.lineno)
+        if isinstance(self.offset, str):
+            check_ascii(self.offset)
+        if isinstance(self.lastlineno, str):
+            check_ascii(self.lastlineno)
         return space.newtuple([space.wrap(self.msg),
                                space.newtuple([w_filename,
                                                space.wrap(self.lineno),

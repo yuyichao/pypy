@@ -473,6 +473,8 @@ class __extend__(pairtype(SomeString, SomeObject),
                  pairtype(SomeUnicodeString, SomeObject)):
 
     def mod((s_string, args)):
+        if isinstance(args, SomeFloat):
+            return s_string.tobasestring()
         return s_string.__class__()
 
 class __extend__(pairtype(SomeFloat, SomeFloat)):

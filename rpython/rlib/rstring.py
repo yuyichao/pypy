@@ -595,13 +595,6 @@ def check_ascii(s):
     assert is_ascii_only(s), 'Non-Ascii byte in string'
 
 
-def str_check_ascii(s):
-    """make sure the object is not a string with non-null characters
-    """
-    if isinstance(s, bytes):
-        check_ascii(s)
-
-
 class Entry(ExtRegistryEntry):
     _about_ = check_ascii
 
