@@ -1051,7 +1051,8 @@ def unicode_encode_latin_1(p, size, errors, errorhandler=None):
 
 def unicode_encode_ascii(p, size, errors, errorhandler=None):
     res = unicode_encode_ucs1_helper(p, size, errors, errorhandler, 128)
-    return res
+    from rpython.rlib.rstring import assert_ascii
+    return assert_ascii(res)
 
 # ____________________________________________________________
 # Charmap

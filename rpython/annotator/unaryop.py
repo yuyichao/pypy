@@ -459,13 +459,13 @@ class __extend__(SomeString,
         return SomeInteger(nonneg=True)
 
     def method_strip(self, chr=None):
-        return self.basestringclass(no_nul=self.no_nul)
+        return self.tobasestring()
 
     def method_lstrip(self, chr=None):
-        return self.basestringclass(no_nul=self.no_nul)
+        return self.tobasestring()
 
     def method_rstrip(self, chr=None):
-        return self.basestringclass(no_nul=self.no_nul)
+        return self.tobasestring()
 
     def method_join(self, s_list):
         if s_None.contains(s_list):
@@ -475,8 +475,7 @@ class __extend__(SomeString,
             if isinstance(self, SomeUnicodeString):
                 return immutablevalue(u"")
             return immutablevalue("")
-        no_nul = self.no_nul and s_item.no_nul
-        return self.basestringclass(no_nul=no_nul)
+        return self.tobasestring(s_item.no_nul)
 
     def iter(self):
         return SomeIterator(self)
@@ -486,24 +485,25 @@ class __extend__(SomeString,
         return self.basecharclass()
 
     def method_split(self, patt, max=-1):
+        s_item = self.tobasestring()
         if max == -1 and patt.is_constant() and patt.const == "\0":
-            no_nul = True
-        else:
-            no_nul = self.no_nul
-        s_item = self.basestringclass(no_nul=no_nul)
+            s_item.no_nul = True
         return getbookkeeper().newlist(s_item)
 
     def method_rsplit(self, patt, max=-1):
-        s_item = self.basestringclass(no_nul=self.no_nul)
+        s_item = self.tobasestring()
         return getbookkeeper().newlist(s_item)
 
     def method_replace(self, s1, s2):
-        return self.basestringclass(no_nul=self.no_nul and s2.no_nul)
+        if isinstance(self, SomeUnicodeString):
+            return self.basestringclass(no_nul=self.no_nul and s2.no_nul)
+        return self.basestringclass(no_nul=self.no_nul and s2.no_nul,
+                                    ascii_only=(self.ascii_only and
+                                                s2.ascii_only))
 
     def getslice(self, s_start, s_stop):
         check_negative_slice(s_start, s_stop)
-        result = self.basestringclass(no_nul=self.no_nul)
-        return result
+        return self.tobasestring()
 
     def op_contains(self, s_element):
         if s_element.is_constant() and s_element.const == "\0":
@@ -534,7 +534,7 @@ class __extend__(SomeUnicodeString):
         enc = s_enc.const
         if enc not in ('ascii', 'latin-1', 'utf-8'):
             raise AnnotatorError("Encoding %s not supported for unicode" % (enc,))
-        return SomeString()
+        return SomeString(no_nul=self.no_nul, ascii_only=(enc == 'ascii'))
     method_encode.can_only_throw = [UnicodeEncodeError]
 
 
@@ -549,13 +549,13 @@ class __extend__(SomeString):
         return s_Bool
 
     def method_upper(self):
-        return SomeString()
+        return self.nonnoneify()
 
     def method_lower(self):
-        return SomeString()
+        return self.nonnoneify()
 
     def method_splitlines(self, s_keep_newlines=None):
-        s_list = getbookkeeper().newlist(self.basestringclass())
+        s_list = getbookkeeper().newlist(self.tobasestring())
         # Force the list to be resizable because ll_splitlines doesn't
         # preallocate the list.
         s_list.listdef.listitem.resize()

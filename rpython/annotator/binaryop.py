@@ -373,11 +373,14 @@ class __extend__(pairtype(SomeString, SomeString)):
     def union((str1, str2)):
         can_be_None = str1.can_be_None or str2.can_be_None
         no_nul = str1.no_nul and str2.no_nul
-        return SomeString(can_be_None=can_be_None, no_nul=no_nul)
+        ascii_only = str1.ascii_only and str2.ascii_only
+        return SomeString(can_be_None=can_be_None, no_nul=no_nul,
+                          ascii_only=ascii_only)
 
     def add((str1, str2)):
         # propagate const-ness to help getattr(obj, 'prefix' + const_name)
-        result = SomeString(no_nul=str1.no_nul and str2.no_nul)
+        result = SomeString(no_nul=str1.no_nul and str2.no_nul,
+                            ascii_only=str1.ascii_only and str2.ascii_only)
         if str1.is_immutable_constant() and str2.is_immutable_constant():
             result.const = str1.const + str2.const
         return result
@@ -408,7 +411,8 @@ class __extend__(pairtype(SomeChar, SomeChar)):
 
     def union((chr1, chr2)):
         no_nul = chr1.no_nul and chr2.no_nul
-        return SomeChar(no_nul=no_nul)
+        ascii_only = chr1.ascii_only and chr2.ascii_only
+        return SomeChar(no_nul=no_nul, ascii_only=ascii_only)
 
 
 class __extend__(pairtype(SomeChar, SomeUnicodeCodePoint),
@@ -452,8 +456,18 @@ class __extend__(pairtype(SomeString, SomeTuple),
             else:
                 no_nul = False
                 break
-        return s_string.__class__(no_nul=no_nul)
-
+        if is_unicode:
+            return s_string.__class__(no_nul=no_nul)
+        ascii_only = s_string.ascii_only
+        for s_item in s_tuple.items:
+            if isinstance(s_item, SomeFloat):
+                pass   # or s_item is a subclass, like SomeInteger
+            elif isinstance(s_item, SomeString) and s_item.ascii_only:
+                pass
+            else:
+                ascii_only = False
+                break
+        return s_string.__class__(no_nul=no_nul, ascii_only=ascii_only)
 
 class __extend__(pairtype(SomeString, SomeObject),
                  pairtype(SomeUnicodeString, SomeObject)):
@@ -616,19 +630,19 @@ class __extend__(pairtype(SomeList, SomeInteger)):
 class __extend__(pairtype(SomeString, SomeInteger)):
 
     def getitem((str1, int2)):
-        return SomeChar(no_nul=str1.no_nul)
+        return SomeChar(no_nul=str1.no_nul, ascii_only=str1.ascii_only)
     getitem.can_only_throw = []
 
     getitem_key = getitem
 
     def getitem_idx((str1, int2)):
-        return SomeChar(no_nul=str1.no_nul)
+        return SomeChar(no_nul=str1.no_nul, ascii_only=str1.ascii_only)
     getitem_idx.can_only_throw = [IndexError]
 
     getitem_idx_key = getitem_idx
 
     def mul((str1, int2)): # xxx do we want to support this
-        return SomeString(no_nul=str1.no_nul)
+        return str1.tobasestring()
 
 class __extend__(pairtype(SomeUnicodeString, SomeInteger)):
     def getitem((str1, int2)):
@@ -650,7 +664,7 @@ class __extend__(pairtype(SomeInteger, SomeString),
                  pairtype(SomeInteger, SomeUnicodeString)):
 
     def mul((int1, str2)): # xxx do we want to support this
-        return str2.basestringclass()
+        return str2.tobasestring()
 
 class __extend__(pairtype(SomeUnicodeCodePoint, SomeUnicodeString),
                  pairtype(SomeUnicodeString, SomeUnicodeCodePoint),

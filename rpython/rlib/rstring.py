@@ -555,3 +555,61 @@ class Entry(ExtRegistryEntry):
         hop.exception_cannot_occur()
 
 
+#___________________________________________________________________
+# Support functions for SomeString.ascii_only
+
+def is_ascii_only(s):
+    for c in s:
+        if ord(c) >= 128:
+            return False
+    return True
+
+
+def assert_ascii(s):
+    assert is_ascii_only(s), 'Non-Ascii byte in string'
+    return s
+
+
+class Entry(ExtRegistryEntry):
+    _about_ = assert_ascii
+
+    def compute_result_annotation(self, s_obj):
+        if s_None.contains(s_obj):
+            return s_obj
+        assert isinstance(s_obj, SomeString)
+        if s_obj.ascii_only:
+            return s_obj
+        new_s_obj = SomeObject.__new__(s_obj.__class__)
+        new_s_obj.__dict__ = s_obj.__dict__.copy()
+        new_s_obj.ascii_only = True
+        return new_s_obj
+
+    def specialize_call(self, hop):
+        hop.exception_cannot_occur()
+        return hop.inputarg(hop.args_r[0], arg=0)
+
+
+def check_ascii(s):
+    """A 'probe' to trigger a failure at translation time, if the
+    string was not proved to only contain ASCII characters."""
+    assert is_ascii_only(s), 'Non-Ascii byte in string'
+
+
+def str_check_ascii(s):
+    """make sure the object is not a string with non-null characters
+    """
+    if isinstance(s, bytes):
+        check_ascii(s)
+
+
+class Entry(ExtRegistryEntry):
+    _about_ = check_ascii
+
+    def compute_result_annotation(self, s_obj):
+        if not isinstance(s_obj, SomeString):
+            return s_obj
+        if not s_obj.ascii_only:
+            raise ValueError("Value is not ascii_only")
+
+    def specialize_call(self, hop):
+        hop.exception_cannot_occur()

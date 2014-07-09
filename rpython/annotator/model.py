@@ -251,18 +251,40 @@ class SomeStringOrUnicode(SomeObject):
         return d1 == d2
 
     def nonnoneify(self):
-        return self.__class__(can_be_None=False, no_nul=self.no_nul)
+        return self.__class__(no_nul=self.no_nul)
 
     def nonnulify(self):
         return self.__class__(can_be_None=self.can_be_None, no_nul=True)
+
+    def tobasestring(self, no_nul=True):
+        return self.basestringclass(no_nul=self.no_nul and no_nul)
 
 
 class SomeString(SomeStringOrUnicode):
     "Stands for an object which is known to be a string."
     knowntype = str
+    ascii_only = False
+
+    def __init__(self, can_be_None=False, no_nul=False, ascii_only=False):
+        SomeStringOrUnicode.__init__(self, can_be_None=can_be_None,
+                                     no_nul=no_nul)
+        if ascii_only:
+            self.ascii_only = True
 
     def noneify(self):
-        return SomeString(can_be_None=True, no_nul=self.no_nul)
+        return SomeString(can_be_None=True, no_nul=self.no_nul,
+                          ascii_only=self.ascii_only)
+
+    def nonnoneify(self):
+        return self.__class__(no_nul=self.no_nul, ascii_only=self.ascii_only)
+
+    def nonnulify(self):
+        return self.__class__(can_be_None=self.can_be_None, no_nul=True,
+                              ascii_only=self.ascii_only)
+
+    def tobasestring(self, no_nul=True):
+        return self.basestringclass(no_nul=self.no_nul and no_nul,
+                                    ascii_only=self.ascii_only)
 
 
 class SomeUnicodeString(SomeStringOrUnicode):
@@ -282,9 +304,12 @@ class SomeChar(SomeString):
     "Stands for an object known to be a string of length 1."
     can_be_None = False
 
-    def __init__(self, no_nul=False):    # no 'can_be_None' argument here
+    def __init__(self, no_nul=False,
+                 ascii_only=False): # no 'can_be_None' argument here
         if no_nul:
             self.no_nul = True
+        if ascii_only:
+            self.ascii_only = True
 
 
 class SomeUnicodeCodePoint(SomeUnicodeString):

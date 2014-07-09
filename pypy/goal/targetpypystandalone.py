@@ -147,7 +147,7 @@ def create_entry_point(space, w_dict):
         res = _pypy_execute_source(source)
         before = rffi.aroundstate.before
         if before: before()
-        return rffi.cast(rffi.INT, res)        
+        return rffi.cast(rffi.INT, res)
 
     @entrypoint('main', [], c_name='pypy_init_threads')
     def pypy_init_threads():

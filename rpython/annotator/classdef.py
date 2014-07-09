@@ -455,4 +455,3 @@ except ImportError:
 else:
     FORCE_ATTRIBUTES_INTO_CLASSES[termios.error] = \
         {'args': SomeTuple([SomeInteger(), SomeString()])}
-

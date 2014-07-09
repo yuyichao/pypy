@@ -8,6 +8,7 @@ from rpython.rlib import rstring
 def recode_to_utf8(space, bytes, encoding=None):
     if encoding == 'utf-8':
         return bytes
+    rstring.str_check_ascii(encoding)
     w_text = space.call_method(space.wrapbytes(bytes), "decode",
                                space.wrap(encoding))
     w_recoded = space.call_method(w_text, "encode", space.wrap("utf-8"))

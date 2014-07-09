@@ -230,11 +230,13 @@ class Bookkeeper(object):
             else:
                 raise Exception("seeing a prebuilt long (value %s)" % hex(x))
         elif issubclass(tp, str): # py.lib uses annotated str subclasses
+            from rpython.rlib.rstring import is_ascii_only
             no_nul = not '\x00' in x
+            ascii_only = is_ascii_only(x)
             if len(x) == 1:
-                result = SomeChar(no_nul=no_nul)
+                result = SomeChar(no_nul=no_nul, ascii_only=ascii_only)
             else:
-                result = SomeString(no_nul=no_nul)
+                result = SomeString(no_nul=no_nul, ascii_only=ascii_only)
         elif tp is unicode:
             if len(x) == 1:
                 result = SomeUnicodeCodePoint()
