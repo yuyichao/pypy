@@ -111,7 +111,7 @@ def generate_tokens(lines, flags):
         if contstr:
             if not line:
                 raise TokenError(
-                    "EOF while scanning triple-quoted string literal",
+                    u"EOF while scanning triple-quoted string literal",
                     strstart[2], strstart[0], strstart[1]+1,
                     token_list, lnum-1)
             endmatch = endDFA.recognize(line)
@@ -176,7 +176,7 @@ def generate_tokens(lines, flags):
                     token_list.append((tokens.DEDENT, '', lnum, pos, line))
                     last_comment = ''
                 if column != indents[-1]:
-                    err = "unindent does not match any outer indentation level"
+                    err = u"unindent does not match any outer indentation level"
                     raise TokenIndentationError(err, line, lnum, 0, token_list)
                 if altcolumn != altindents[-1]:
                     raise TabError(lnum, pos, line)
@@ -185,9 +185,9 @@ def generate_tokens(lines, flags):
             if not line:
                 if parenlev > 0:
                     lnum1, start1, line1 = parenlevstart
-                    raise TokenError("parenthesis is never closed", line1,
+                    raise TokenError(u"parenthesis is never closed", line1,
                                      lnum1, start1 + 1, token_list, lnum)
-                raise TokenError("EOF in multi-line statement", line,
+                raise TokenError(u"EOF in multi-line statement", line,
                                  lnum, 0, token_list)
             continued = 0
 
@@ -201,7 +201,7 @@ def generate_tokens(lines, flags):
                 end = pseudomatch
 
                 if start == end:
-                    raise TokenError("Unknown character", line,
+                    raise TokenError(u"Unknown character", line,
                                      lnum, start + 1, token_list)
 
                 pos = end
@@ -250,7 +250,7 @@ def generate_tokens(lines, flags):
                 elif (initial in namechars or              # ordinary name
                       ord(initial) >= 0x80):               # unicode identifier
                     if not verify_identifier(token):
-                        raise TokenError("invalid character in identifier",
+                        raise TokenError(u"invalid character in identifier",
                                          line, lnum, start + 1, token_list)
                     token_list.append((tokens.NAME, token, lnum, start, line))
                     last_comment = ''
@@ -264,8 +264,9 @@ def generate_tokens(lines, flags):
                     elif initial in ')]}':
                         parenlev = parenlev - 1
                         if parenlev < 0:
-                            raise TokenError("unmatched '%s'" % initial, line,
-                                             lnum, start + 1, token_list)
+                            raise TokenError((u"unmatched '%s'" %
+                                              initial.decode('ascii')),
+                                             line, lnum, start + 1, token_list)
                     if token in python_opmap:
                         punct = python_opmap[token]
                     else:
@@ -277,8 +278,8 @@ def generate_tokens(lines, flags):
                 if start < 0:
                     start = pos
                 if start<max and line[start] in single_quoted:
-                    raise TokenError("EOL while scanning string literal",
-                             line, lnum, start+1, token_list)
+                    raise TokenError(u"EOL while scanning string literal",
+                                     line, lnum, start + 1, token_list)
                 tok = (tokens.ERRORTOKEN, line[pos], lnum, pos, line)
                 token_list.append(tok)
                 last_comment = ''

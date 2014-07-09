@@ -216,6 +216,7 @@ class PythonCodeGenerator(assemble.PythonCodeMaker):
             "mismatched frame blocks"
 
     def error(self, msg, node):
+        assert isinstance(msg, unicode)
         raise SyntaxError(msg, node.lineno, node.col_offset,
                           filename=self.compile_info.filename)
 
@@ -337,7 +338,7 @@ class PythonCodeGenerator(assemble.PythonCodeMaker):
         l = len(names)
         if l:
             if l > 65534:
-                self.error("too many annotations", func)
+                self.error(u"too many annotations", func)
             w_tup = space.newtuple([space.wrap(name.decode('utf-8'))
                                     for name in names])
             self.load_const(w_tup)
@@ -432,7 +433,7 @@ class PythonCodeGenerator(assemble.PythonCodeMaker):
             self.emit_op(self._op_for_augassign(assign.op))
             self.name_op(target.id, ast.Store)
         else:
-            self.error("illegal expression for augmented assignment", assign)
+            self.error(u"illegal expression for augmented assignment", assign)
 
     def visit_Assert(self, asrt):
         self.update_position(asrt.lineno)
@@ -494,13 +495,13 @@ class PythonCodeGenerator(assemble.PythonCodeMaker):
             if f_block[0] == F_BLOCK_LOOP:
                 break
         else:
-            self.error("'break' outside loop", br)
+            self.error(u"'break' outside loop", br)
         self.emit_op(ops.BREAK_LOOP)
 
     def visit_Continue(self, cont):
         self.update_position(cont.lineno, True)
         if not self.frame_blocks:
-            self.error("'continue' not properly in loop", cont)
+            self.error(u"'continue' not properly in loop", cont)
         current_block, block = self.frame_blocks[-1]
         # Continue cannot be in a finally block.
         if current_block == F_BLOCK_LOOP:
@@ -513,12 +514,12 @@ class PythonCodeGenerator(assemble.PythonCodeMaker):
                     self.emit_jump(ops.CONTINUE_LOOP, block, True)
                     break
                 if f_type == F_BLOCK_FINALLY_END:
-                    self.error("'continue' not supported inside 'finally' "
-                                   "clause", cont)
+                    self.error(u"'continue' not supported inside 'finally' "
+                               "clause", cont)
             else:
-                self.error("'continue' not properly in loop", cont)
+                self.error(u"'continue' not properly in loop", cont)
         elif current_block == F_BLOCK_FINALLY_END:
-            self.error("'continue' not supported inside 'finally' clause", cont)
+            self.error(u"'continue' not supported inside 'finally' clause", cont)
 
     def visit_For(self, fr):
         self.update_position(fr.lineno, True)
@@ -710,18 +711,18 @@ class PythonCodeGenerator(assemble.PythonCodeMaker):
             last_line, last_offset = self.compile_info.last_future_import
             if imp.lineno > last_line or \
                     imp.lineno == last_line and imp.col_offset > last_offset:
-                self.error("__future__ statements must appear at beginning "
-                               "of file", imp)
+                self.error(u"__future__ statements must appear at beginning "
+                           "of file", imp)
             if star_import:
-                self.error("* not valid in __future__ imports", imp)
+                self.error(u"* not valid in __future__ imports", imp)
             compiler = space.createcompiler()
             for alias in imp.names:
                 assert isinstance(alias, ast.alias)
                 if alias.name not in compiler.future_flags.compiler_features:
                     if alias.name == "braces":
-                        self.error("not a chance", imp)
-                    self.error("future feature %s is not defined" %
-                               (alias.name,), imp)
+                        self.error(u"not a chance", imp)
+                    self.error(u"future feature %s is not defined" %
+                               alias.name.decode('utf-8'), imp)
         self.load_const(space.wrap(imp.level))
         names_w = [None]*len(imp.names)
         for i in range(len(imp.names)):
@@ -980,14 +981,14 @@ class PythonCodeGenerator(assemble.PythonCodeMaker):
                 is_starred = isinstance(elt, ast.Starred)
                 if is_starred and not seen_star:
                     if i >= 1 << 8 or elt_count - i - 1 >= (C_INT_MAX >> 8):
-                        self.error("too many expressions in star-unpacking "
+                        self.error(u"too many expressions in star-unpacking "
                                    "assignment", node)
                     self.emit_op_arg(ops.UNPACK_EX,
                                      i + ((elt_count - i - 1) << 8))
                     seen_star = True
                     elts[i] = elt.value
                 elif is_starred:
-                    self.error("two starred expressions in assignment", node)
+                    self.error(u"two starred expressions in assignment", node)
             if not seen_star:
                 self.emit_op_arg(ops.UNPACK_SEQUENCE, elt_count)
         self.visit_sequence(elts)
@@ -996,9 +997,9 @@ class PythonCodeGenerator(assemble.PythonCodeMaker):
 
     def visit_Starred(self, star):
         if star.ctx != ast.Store:
-            self.error("can use starred expression only as assignment target",
+            self.error(u"can use starred expression only as assignment target",
                        star)
-        self.error("starred assignment target must be in a list or tuple", star)
+        self.error(u"starred assignment target must be in a list or tuple", star)
 
     def visit_Tuple(self, tup):
         self.update_position(tup.lineno)

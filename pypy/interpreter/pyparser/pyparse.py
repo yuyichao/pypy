@@ -117,8 +117,9 @@ class PythonParser(parser.Parser):
             # If an encoding is explicitly given check that it is utf-8.
             decl_enc = _check_for_encoding(bytessrc)
             if decl_enc and decl_enc != "utf-8":
-                raise error.SyntaxError("UTF-8 BOM with %s coding cookie" % decl_enc,
-                                        filename=compile_info.filename)
+                raise error.syntax_error_ascii(
+                    u"UTF-8 BOM with %s coding cookie",
+                    decl_enc, filename=compile_info.filename)
             textsrc = bytessrc
         else:
             enc = _normalize_encoding(_check_for_encoding(bytessrc))
@@ -132,13 +133,19 @@ class PythonParser(parser.Parser):
                 # KeyError
                 space = self.space
                 if e.match(space, space.w_LookupError):
-                    raise error.SyntaxError("Unknown encoding: %s" % enc,
-                                            filename=compile_info.filename)
+                    raise error.syntax_error_ascii(
+                        u"Unknown encoding: %s", enc,
+                        filename=compile_info.filename)
                 # Transform unicode errors into SyntaxError
                 if e.match(space, space.w_UnicodeDecodeError):
                     e.normalize_exception(space)
                     w_message = space.str(e.get_w_value(space))
-                    raise error.SyntaxError(space.str_w(w_message))
+                    if space.isinstance_w(w_message, space.w_unicode):
+                        raise error.SyntaxError(space.unicode_w(w_message))
+                    msg = space.bytes_w(w_message)
+                    from rpython.rlib.runicode import str_decode_utf_8
+                    raise error.SyntaxError(str_decode_utf_8(msg, len(msg),
+                                                             'replace')[0])
                 raise
 
         flags = compile_info.flags
@@ -176,12 +183,12 @@ class PythonParser(parser.Parser):
                 # SyntaxError.
                 new_err = error.IndentationError
                 if tp == pygram.tokens.INDENT:
-                    msg = "unexpected indent"
+                    msg = u"unexpected indent"
                 elif e.expected == pygram.tokens.INDENT:
-                    msg = "expected an indented block"
+                    msg = u"expected an indented block"
                 else:
                     new_err = error.SyntaxError
-                    msg = "invalid syntax"
+                    msg = u"invalid syntax"
                 raise new_err(msg, e.lineno, e.column, e.line,
                               compile_info.filename)
             else:

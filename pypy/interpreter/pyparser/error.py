@@ -1,10 +1,27 @@
 from rpython.rlib.rstring import check_ascii
+from rpython.rlib.runicode import str_decode_utf_8
+
+
+def syntax_error_utf8(fmt, s, lineno=0, offset=0, text=None, filename=None,
+                      lastlineno=0):
+    return SyntaxError(fmt % str_decode_utf_8(s, len(s), 'replace')[0],
+                       lineno=lineno, offset=offset, text=text,
+                       filename=filename, lastlineno=lastlineno)
+
+
+def syntax_error_ascii(fmt, s, lineno=0, offset=0, text=None, filename=None,
+                       lastlineno=0):
+    check_ascii(s)
+    return SyntaxError(fmt % s.decode('ascii'), lineno=lineno, offset=offset,
+                       text=text, filename=filename, lastlineno=lastlineno)
+
 
 class SyntaxError(Exception):
     """Base class for exceptions raised by the parser."""
 
     def __init__(self, msg, lineno=0, offset=0, text=None, filename=None,
                  lastlineno=0):
+        assert isinstance(msg, unicode)
         self.msg = msg
         self.lineno = lineno
         self.offset = offset
@@ -17,10 +34,8 @@ class SyntaxError(Exception):
         if self.text is not None:
             from rpython.rlib.runicode import str_decode_utf_8
             # self.text may not be UTF-8 in case of decoding errors
-            text = str_decode_utf_8(self.text, len(self.text), 'replace')[0]
-            if isinstance(text, str):
-                check_ascii(text)
-            w_text = space.wrap(text)
+            w_text = space.wrap(str_decode_utf_8(self.text, len(self.text),
+                                                 'replace')[0])
         if self.filename is not None:
             w_filename = space.fsdecode(space.wrapbytes(self.filename))
         if isinstance(self.lineno, str):
@@ -48,8 +63,9 @@ class IndentationError(SyntaxError):
 class TabError(IndentationError):
     def __init__(self, lineno=0, offset=0, text=None, filename=None,
                  lastlineno=0):
-        msg = "inconsistent use of tabs and spaces in indentation"
-        IndentationError.__init__(self, msg, lineno, offset, text, filename, lastlineno)
+        msg = u"inconsistent use of tabs and spaces in indentation"
+        IndentationError.__init__(self, msg, lineno, offset, text,
+                                  filename, lastlineno)
 
 class ASTError(Exception):
     def __init__(self, msg, ast_node ):
@@ -60,6 +76,7 @@ class ASTError(Exception):
 class TokenError(SyntaxError):
 
     def __init__(self, msg, line, lineno, column, tokens, lastlineno=0):
+        assert isinstance(msg, unicode)
         SyntaxError.__init__(self, msg, lineno, column, line,
                              lastlineno=lastlineno)
         self.tokens = tokens
@@ -67,5 +84,6 @@ class TokenError(SyntaxError):
 class TokenIndentationError(IndentationError):
 
     def __init__(self, msg, line, lineno, column, tokens):
+        assert isinstance(msg, unicode)
         SyntaxError.__init__(self, msg, lineno, column, line)
         self.tokens = tokens
