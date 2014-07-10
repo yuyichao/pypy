@@ -15,7 +15,7 @@ from rpython.rlib import streamio, jit
 from rpython.rlib.streamio import StreamErrors
 from rpython.rlib.objectmodel import we_are_translated, specialize
 from rpython.rlib.signature import signature
-from rpython.rlib import rposix, types
+from rpython.rlib import rposix, types, rstring
 from pypy.module.sys.version import PYPY_VERSION
 
 _WIN32 = sys.platform == 'win32'
@@ -503,6 +503,7 @@ def find_module(space, modulename, w_modulename, partname, w_path,
     if w_path is None:
         # check the builtin modules
         if modulename in space.builtin_modules:
+            modulename = rstring.assert_ascii(modulename)
             delayed_builtin = FindInfo(C_BUILTIN, modulename, None)
             # a "real builtin module xx" shadows every file "xx.py" there
             # could possibly be; a "pseudo-extension module" does not, and
@@ -586,8 +587,13 @@ def load_module(space, w_modulename, find_info, reuse=False):
         return space.call_method(find_info.w_loader, "load_module", w_modulename)
 
     if find_info.modtype == C_BUILTIN:
-        return space.getbuiltinmodule(find_info.filename, force_init=True,
-                                      reuse=reuse)
+        if find_info.filename not in space.builtin_modules:
+            # This is closer (although still not identical) to CPython behavior
+            # (CPython seems to ignore filename for c_builtin modules)
+            # and returns None if nothing is found
+            return
+        return space.getbuiltinmodule(rstring.assert_ascii(find_info.filename),
+                                      force_init=True, reuse=reuse)
 
     if find_info.modtype in (PY_SOURCE, PY_COMPILED, C_EXTENSION, PKG_DIRECTORY):
         w_mod = None

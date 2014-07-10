@@ -5,6 +5,7 @@ Module objects.
 from pypy.interpreter.baseobjspace import W_Root
 from pypy.interpreter.error import OperationError
 from rpython.rlib.objectmodel import we_are_translated
+from rpython.rlib import rstring
 
 
 class Module(W_Root):
@@ -32,7 +33,7 @@ class Module(W_Root):
     def install(self):
         """NOT_RPYTHON: installs this module into space.builtin_modules"""
         w_mod = self.space.wrap(self)
-        modulename = self.space.str0_w(self.w_name)
+        modulename = rstring.assert_ascii(self.space.str0_w(self.w_name))
         self.space.builtin_modules[modulename] = w_mod
 
     def setup_after_space_initialization(self):

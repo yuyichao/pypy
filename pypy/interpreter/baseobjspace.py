@@ -2,7 +2,7 @@ import sys
 
 from rpython.rlib.cache import Cache
 from rpython.tool.uid import HUGEVAL_BYTES
-from rpython.rlib import jit, types
+from rpython.rlib import jit, types, rstring
 from rpython.rlib.buffer import StringBuffer
 from rpython.rlib.debug import make_sure_not_resized
 from rpython.rlib.objectmodel import (we_are_translated, newlist_hint,
@@ -359,6 +359,7 @@ class ObjSpace(object):
             config = get_pypy_config(translating=False)
         self.config = config
 
+        # names of builtin modules must be ASCII strings
         self.builtin_modules = {}
         self.reloading_modules = {}
 
@@ -436,12 +437,16 @@ class ObjSpace(object):
         else:
             name = importname
 
+        if isinstance(name, str):
+            rstring.check_ascii(name)
         mod = Module(self, self.wrap(name))
         mod.install()
 
         return name
 
     def getbuiltinmodule(self, name, force_init=False, reuse=True):
+        if isinstance(name, str):
+            rstring.check_ascii(name)
         w_name = self.wrap(name)
         w_modules = self.sys.get('modules')
         if not force_init:
@@ -529,26 +534,26 @@ class ObjSpace(object):
         "NOT_RPYTHON: only for initializing the space."
 
         from pypy.module.exceptions import Module
-        w_name = self.wrap('__exceptions__')
+        w_name = self.wrap(u'__exceptions__')
         self.exceptions_module = Module(self, w_name)
         self.exceptions_module.install()
 
         from pypy.module.imp import Module
-        w_name = self.wrap('imp')
+        w_name = self.wrap(u'imp')
         mod = Module(self, w_name)
         mod.install()
 
         from pypy.module.sys import Module
-        w_name = self.wrap('sys')
+        w_name = self.wrap(u'sys')
         self.sys = Module(self, w_name)
         self.sys.install()
 
         from pypy.module.__builtin__ import Module
-        w_name = self.wrap('builtins')
+        w_name = self.wrap(u'builtins')
         self.builtin = Module(self, w_name)
         w_builtin = self.wrap(self.builtin)
         w_builtin.install()
-        self.setitem(self.builtin.w_dict, self.wrap('__builtins__'), w_builtin)
+        self.setitem(self.builtin.w_dict, self.wrap(u'__builtins__'), w_builtin)
 
         # exceptions was bootstrapped as '__exceptions__' but still
         # lives in pypy/module/exceptions, we rename it below for
@@ -562,6 +567,8 @@ class ObjSpace(object):
         types_w = (self.get_builtin_types().items() +
                    exception_types_w.items())
         for name, w_type in types_w:
+            if isinstance(name, str):
+                rstring.check_ascii(name)
             self.setitem(self.builtin.w_dict, self.wrap(name), w_type)
 
         # install mixed modules
@@ -572,11 +579,15 @@ class ObjSpace(object):
         installed_builtin_modules.remove('exceptions')
         installed_builtin_modules.append('__exceptions__')
         installed_builtin_modules.sort()
+        for fn in installed_builtin_modules:
+            if isinstance(fn, str):
+                rstring.check_ascii(fn)
+
         w_builtin_module_names = self.newtuple(
             [self.wrap(fn) for fn in installed_builtin_modules])
 
         # force this value into the dict without unlazyfying everything
-        self.setitem(self.sys.w_dict, self.wrap('builtin_module_names'),
+        self.setitem(self.sys.w_dict, self.wrap(u'builtin_module_names'),
                      w_builtin_module_names)
 
     def get_builtin_types(self):
@@ -689,7 +700,7 @@ class ObjSpace(object):
             return rthread.allocate_lock()
         except rthread.error:
             raise OperationError(self.w_RuntimeError,
-                                 self.wrap("out of resources"))
+                                 self.wrap(u"out of resources"))
 
     # Following is a friendly interface to common object space operations
     # that can be defined in term of more primitive ones.  Subclasses
@@ -734,6 +745,8 @@ class ObjSpace(object):
         return self.int_w(self.len(w_obj))
 
     def setitem_str(self, w_obj, key, w_value):
+        if isinstance(key, str):
+            rstring.check_ascii(key)
         return self.setitem(w_obj, self.wrap(key), w_value)
 
     def finditem_str(self, w_obj, key):
@@ -937,7 +950,7 @@ class ObjSpace(object):
         hint = self.int_w(w_hint)
         if hint < 0:
             raise OperationError(self.w_ValueError, self.wrap(
-                    "__length_hint__() should return >= 0"))
+                    u"__length_hint__() should return >= 0"))
         return hint
 
     def fixedview(self, w_iterable, expected_length=-1):
@@ -1076,6 +1089,8 @@ class ObjSpace(object):
         return w_res
 
     def call_method(self, w_obj, methname, *arg_w):
+        if isinstance(methname, str):
+            rstring.check_ascii(methname)
         w_meth = self.getattr(w_obj, self.wrap(methname))
         return self.call_function(w_meth, *arg_w)
 
@@ -1085,7 +1100,7 @@ class ObjSpace(object):
 
     def lookup(self, w_obj, name):
         w_type = self.type(w_obj)
-        w_mro = self.getattr(w_type, self.wrap("__mro__"))
+        w_mro = self.getattr(w_type, self.wrap(u"__mro__"))
         for w_supertype in self.fixedview(w_mro):
             w_value = w_supertype.getdictvalue(self, name)
             if w_value is not None:
@@ -1096,7 +1111,7 @@ class ObjSpace(object):
         return self.wrap(self.lookup(w_obj, "__call__") is not None)
 
     def issequence_w(self, w_obj):
-        return (self.findattr(w_obj, self.wrap("__getitem__")) is not None)
+        return (self.findattr(w_obj, self.wrap(u"__getitem__")) is not None)
 
     # The code below only works
     # for the simple case (new-style instance).
@@ -1165,7 +1180,7 @@ class ObjSpace(object):
                                          hidden_applevel=hidden_applevel)
         if not isinstance(statement, PyCode):
             raise TypeError('space.exec_(): expected a string, code or PyCode object')
-        w_key = self.wrap('__builtins__')
+        w_key = self.wrap(u'__builtins__')
         if not self.is_true(self.contains(w_globals, w_key)):
             self.setitem(w_globals, w_key, self.wrap(self.builtin))
         return statement.exec_code(self, w_globals, w_locals)
@@ -1230,7 +1245,7 @@ class ObjSpace(object):
                 start += seqlength
             if not (0 <= start < seqlength):
                 raise OperationError(self.w_IndexError,
-                                     self.wrap("index out of range"))
+                                     self.wrap(u"index out of range"))
             stop = 0
             step = 0
         return start, stop, step
@@ -1251,7 +1266,7 @@ class ObjSpace(object):
                 start += seqlength
             if not (0 <= start < seqlength):
                 raise OperationError(self.w_IndexError,
-                                     self.wrap("index out of range"))
+                                     self.wrap(u"index out of range"))
             stop = 0
             step = 0
             length = 1
@@ -1308,7 +1323,7 @@ class ObjSpace(object):
             return bigint.tolonglong()
         except OverflowError:
             raise OperationError(self.w_OverflowError,
-                                 self.wrap('integer too large'))
+                                 self.wrap(u'integer too large'))
 
     def r_ulonglong_w(self, w_obj, allow_conversion=True):
         bigint = self.bigint_w(w_obj, allow_conversion)
@@ -1316,10 +1331,10 @@ class ObjSpace(object):
             return bigint.toulonglong()
         except OverflowError:
             raise OperationError(self.w_OverflowError,
-                                 self.wrap('integer too large'))
+                                 self.wrap(u'integer too large'))
         except ValueError:
             raise OperationError(self.w_ValueError,
-                                 self.wrap('cannot convert negative integer '
+                                 self.wrap(u'cannot convert negative integer '
                                            'to unsigned int'))
 
     BUF_SIMPLE   = 0x0000
@@ -1467,20 +1482,18 @@ class ObjSpace(object):
 
     def str0_w(self, w_obj):
         "Like str_w, but rejects strings with NUL bytes."
-        from rpython.rlib import rstring
         result = self.str_w(w_obj)
         if '\x00' in result:
             raise OperationError(self.w_TypeError, self.wrap(
-                    'argument must be a string without NUL characters'))
+                    u'argument must be a string without NUL characters'))
         return rstring.assert_str0(result)
 
     def bytes0_w(self, w_obj):
         "Like bytes_w, but rejects strings with NUL bytes."
-        from rpython.rlib import rstring
         result = self.bytes_w(w_obj)
         if '\x00' in result:
             raise OperationError(self.w_TypeError, self.wrap(
-                    'argument must be a string without NUL characters'))
+                    u'argument must be a string without NUL characters'))
         return rstring.assert_str0(result)
 
     def int_w(self, w_obj, allow_conversion=True):
@@ -1521,7 +1534,7 @@ class ObjSpace(object):
         # Like str_w, but only works if w_obj is really of type 'str'.
         if not self.isinstance_w(w_obj, self.w_str):
             raise OperationError(self.w_TypeError,
-                                 self.wrap('argument must be a string'))
+                                 self.wrap(u'argument must be a string'))
         return self.str_w(w_obj)
 
     def unicode_w(self, w_obj):
@@ -1529,11 +1542,11 @@ class ObjSpace(object):
 
     def unicode0_w(self, w_obj):
         "Like unicode_w, but rejects strings with NUL bytes."
-        from rpython.rlib import rstring
         result = w_obj.unicode_w(self)
         if u'\x00' in result:
             raise OperationError(self.w_TypeError, self.wrap(
-                    'argument must be a unicode string without NUL characters'))
+                u'argument must be a unicode string '
+                'without NUL characters'))
         return rstring.assert_str0(result)
 
     def realunicode_w(self, w_obj):
@@ -1541,7 +1554,7 @@ class ObjSpace(object):
         # 'unicode'.
         if not self.isinstance_w(w_obj, self.w_unicode):
             raise OperationError(self.w_TypeError,
-                                 self.wrap('argument must be a unicode'))
+                                 self.wrap(u'argument must be a unicode'))
         return self.unicode_w(w_obj)
 
     def identifier_w(self, w_obj):
@@ -1587,7 +1600,7 @@ class ObjSpace(object):
     def gateway_r_uint_w(self, w_obj):
         if self.isinstance_w(w_obj, self.w_float):
             raise OperationError(self.w_TypeError,
-                            self.wrap("integer argument expected, got float"))
+                            self.wrap(u"integer argument expected, got float"))
         return self.uint_w(self.int(w_obj))
 
     def gateway_nonnegint_w(self, w_obj):
@@ -1596,7 +1609,7 @@ class ObjSpace(object):
         value = self.gateway_int_w(w_obj)
         if value < 0:
             raise OperationError(self.w_ValueError,
-                                 self.wrap("expected a non-negative integer"))
+                                 self.wrap(u"expected a non-negative integer"))
         return value
 
     def c_int_w(self, w_obj):
@@ -1605,7 +1618,7 @@ class ObjSpace(object):
         value = self.gateway_int_w(w_obj)
         if value < INT_MIN or value > INT_MAX:
             raise OperationError(self.w_OverflowError,
-                                 self.wrap("expected a 32-bit integer"))
+                                 self.wrap(u"expected a 32-bit integer"))
         return value
 
     def c_uint_w(self, w_obj):
@@ -1614,7 +1627,7 @@ class ObjSpace(object):
         value = self.uint_w(w_obj)
         if value > UINT_MAX:
             raise OperationError(self.w_OverflowError,
-                              self.wrap("expected an unsigned 32-bit integer"))
+                              self.wrap(u"expected an unsigned 32-bit integer"))
         return value
 
     def c_nonnegint_w(self, w_obj):
@@ -1624,10 +1637,10 @@ class ObjSpace(object):
         value = self.int_w(w_obj)
         if value < 0:
             raise OperationError(self.w_ValueError,
-                                 self.wrap("expected a non-negative integer"))
+                                 self.wrap(u"expected a non-negative integer"))
         if value > INT_MAX:
             raise OperationError(self.w_OverflowError,
-                                 self.wrap("expected a 32-bit integer"))
+                                 self.wrap(u"expected a 32-bit integer"))
         return value
 
     def c_short_w(self, w_obj):
@@ -1669,18 +1682,18 @@ class ObjSpace(object):
         # with a fileno(), but not an object with an __int__().
         if not self.isinstance_w(w_fd, self.w_int):
             try:
-                w_fileno = self.getattr(w_fd, self.wrap("fileno"))
+                w_fileno = self.getattr(w_fd, self.wrap(u"fileno"))
             except OperationError, e:
                 if e.match(self, self.w_AttributeError):
                     raise OperationError(self.w_TypeError,
-                        self.wrap("argument must be an int, or have a fileno() "
-                            "method.")
+                        self.wrap(u"argument must be an int, or have a fileno() "
+                                  "method.")
                     )
                 raise
             w_fd = self.call_function(w_fileno)
             if not self.isinstance_w(w_fd, self.w_int):
                 raise OperationError(self.w_TypeError,
-                    self.wrap("fileno() returned a non-integer")
+                    self.wrap(u"fileno() returned a non-integer")
                 )
         fd = self.c_int_w(w_fd)  # Can raise w_OverflowError
         if fd < 0:

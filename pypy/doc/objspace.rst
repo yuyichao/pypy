@@ -75,6 +75,7 @@ Administrative Functions
 
 ``getbuiltinmodule(name):``
   Return a Module object for the built-in module given by name
+  'name' must be a ascii only string.
   (`pypy/interpreter/module.py`_).
 
 Operations on Objects in the Object Space

@@ -1,7 +1,7 @@
 import os
 import sys
 
-from rpython.rlib import rposix, objectmodel, rurandom
+from rpython.rlib import rposix, objectmodel, rurandom, rstring
 from rpython.rlib.objectmodel import specialize
 from rpython.rlib.rarithmetic import r_longlong
 from rpython.rlib.unroll import unrolling_iterable
@@ -239,7 +239,7 @@ def build_stat_result(space, st):
 
     w_tuple = space.newtuple(lst)
     w_stat_result = space.getattr(space.getbuiltinmodule(os.name),
-                                  space.wrap('stat_result'))
+                                  space.wrap(u'stat_result'))
     return space.call_function(w_stat_result, w_tuple, w_keywords)
 
 
@@ -248,7 +248,8 @@ def build_statvfs_result(space, st):
     for i, (name, _) in STATVFS_FIELDS:
         vals_w[i] = space.wrap(getattr(st, name))
     w_tuple = space.newtuple(vals_w)
-    w_statvfs_result = space.getattr(space.getbuiltinmodule(os.name), space.wrap('statvfs_result'))
+    w_statvfs_result = space.getattr(space.getbuiltinmodule(os.name),
+                                     space.wrap(u'statvfs_result'))
     return space.call_function(w_statvfs_result, w_tuple)
 
 

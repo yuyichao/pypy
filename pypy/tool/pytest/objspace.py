@@ -143,4 +143,3 @@ class TinyObjSpace(object):
 
     def is_w(self, obj1, obj2):
         return obj1 is obj2
-

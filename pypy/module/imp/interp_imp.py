@@ -1,5 +1,5 @@
 from pypy.module.imp import importing
-from rpython.rlib import streamio
+from rpython.rlib import streamio, rstring
 from rpython.rlib.streamio import StreamErrors
 from pypy.interpreter.error import OperationError, oefmt
 from pypy.interpreter.module import Module
@@ -176,8 +176,8 @@ def init_builtin(space, w_name):
     if space.finditem(space.sys.get('modules'), w_name) is not None:
         raise OperationError(
             space.w_ImportError,
-            space.wrap("cannot initialize a built-in module twice in PyPy"))
-    return space.getbuiltinmodule(name)
+            space.wrap(u"cannot initialize a built-in module twice in PyPy"))
+    return space.getbuiltinmodule(rstring.assert_ascii(name))
 
 def init_frozen(space, w_name):
     return None
