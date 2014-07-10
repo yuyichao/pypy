@@ -230,16 +230,33 @@ class Bookkeeper(object):
             else:
                 raise Exception("seeing a prebuilt long (value %s)" % hex(x))
         elif issubclass(tp, str): # py.lib uses annotated str subclasses
+            from rpython.rlib.rstring import is_ascii_str, is_utf8_str
+            from rpython.annotator.model import UTF8_STR, ASCII_STR, UNKNOWN_STR
             no_nul = not '\x00' in x
-            if len(x) == 1:
-                result = SomeChar(no_nul=no_nul)
+            if is_ascii_str(x):
+                str_type = ASCII_STR
+            elif is_utf8_str(x):
+                str_type = UTF8_STR
             else:
-                result = SomeString(no_nul=no_nul)
+                str_type = UNKNOWN_STR
+            if len(x) == 1:
+                result = SomeChar(no_nul=no_nul, str_type=str_type)
+            else:
+                result = SomeString(no_nul=no_nul, str_type=str_type)
         elif tp is unicode:
-            if len(x) == 1:
-                result = SomeUnicodeCodePoint()
+            from rpython.rlib.rstring import is_ascii_str, is_utf8_unicode
+            from rpython.annotator.model import UTF8_STR, ASCII_STR, UNKNOWN_STR
+            no_nul = not '\x00' in x
+            if is_ascii_str(x):
+                str_type = ASCII_STR
+            elif is_utf8_unicode(x):
+                str_type = UTF8_STR
             else:
-                result = SomeUnicodeString()
+                str_type = UNKNOWN_STR
+            if len(x) == 1:
+                result = SomeUnicodeCodePoint(no_nul=no_nul, str_type=str_type)
+            else:
+                result = SomeUnicodeString(no_nul=no_nul, str_type=str_type)
         elif tp is bytearray:
             result = SomeByteArray()
         elif tp is tuple:

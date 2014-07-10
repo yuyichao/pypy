@@ -217,6 +217,11 @@ class SomeBool(SomeInteger):
             self.knowntypedata = knowntypedata
 
 
+UNKNOWN_STR = 0
+UTF8_STR = 1
+ASCII_STR = 2
+
+
 class SomeStringOrUnicode(SomeObject):
     """Base class for shared implementation of SomeString,
     SomeUnicodeString and SomeByteArray.
@@ -226,14 +231,17 @@ class SomeStringOrUnicode(SomeObject):
     immutable = True
     can_be_None = False
     no_nul = False  # No NUL character in the string.
+    str_type = UNKNOWN_STR
 
-    def __init__(self, can_be_None=False, no_nul=False):
+    def __init__(self, can_be_None=False, no_nul=False, str_type=UNKNOWN_STR):
         assert type(self) is not SomeStringOrUnicode
         if can_be_None:
             self.can_be_None = True
         if no_nul:
             assert self.immutable   #'no_nul' cannot be used with SomeByteArray
             self.no_nul = True
+        if str_type != UNKNOWN_STR:
+            self.str_type = str_type
 
     def can_be_none(self):
         return self.can_be_None
@@ -251,26 +259,29 @@ class SomeStringOrUnicode(SomeObject):
         return d1 == d2
 
     def nonnoneify(self):
-        return self.__class__(can_be_None=False, no_nul=self.no_nul)
+        return self.__class__(no_nul=self.no_nul, str_type=self.str_type)
 
     def nonnulify(self):
-        return self.__class__(can_be_None=self.can_be_None, no_nul=True)
+        return self.__class__(can_be_None=self.can_be_None, no_nul=True,
+                              str_type=self.str_type)
+
+    def tobasestring(self, no_nul=True, str_type=ASCII_STR):
+        return self.basestringclass(no_nul=self.no_nul and no_nul,
+                                    str_type=min(self.str_type, str_type))
+
+    def noneify(self):
+        return self.basestringclass(can_be_None=True, no_nul=self.no_nul,
+                                    str_type=self.str_type)
 
 
 class SomeString(SomeStringOrUnicode):
     "Stands for an object which is known to be a string."
     knowntype = str
 
-    def noneify(self):
-        return SomeString(can_be_None=True, no_nul=self.no_nul)
-
 
 class SomeUnicodeString(SomeStringOrUnicode):
     "Stands for an object which is known to be an unicode string"
     knowntype = unicode
-
-    def noneify(self):
-        return SomeUnicodeString(can_be_None=True, no_nul=self.no_nul)
 
 
 class SomeByteArray(SomeStringOrUnicode):
@@ -282,18 +293,24 @@ class SomeChar(SomeString):
     "Stands for an object known to be a string of length 1."
     can_be_None = False
 
-    def __init__(self, no_nul=False):    # no 'can_be_None' argument here
+    def __init__(self, no_nul=False,
+                 str_type=UNKNOWN_STR): # no 'can_be_None' argument here
         if no_nul:
             self.no_nul = True
+        if str_type != UNKNOWN_STR:
+            self.str_type = str_type
 
 
 class SomeUnicodeCodePoint(SomeUnicodeString):
     "Stands for an object known to be a unicode codepoint."
     can_be_None = False
 
-    def __init__(self, no_nul=False):    # no 'can_be_None' argument here
+    def __init__(self, no_nul=False,
+                 str_type=UNKNOWN_STR):    # no 'can_be_None' argument here
         if no_nul:
             self.no_nul = True
+        if str_type != UNKNOWN_STR:
+            self.str_type = str_type
 
 SomeString.basestringclass = SomeString
 SomeString.basecharclass = SomeChar

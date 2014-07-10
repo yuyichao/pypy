@@ -10,7 +10,8 @@ from rpython.annotator.model import (SomeObject, SomeInteger, SomeBool,
     SomeUnicodeCodePoint, SomeInstance, SomeBuiltin, SomeBuiltinMethod,
     SomeFloat, SomeIterator, SomePBC, SomeNone, SomeType, s_ImpossibleValue,
     s_Bool, s_None, unionof, add_knowntypedata,
-    HarmlesslyBlocked, SomeWeakRef, SomeUnicodeString, SomeByteArray)
+    HarmlesslyBlocked, SomeWeakRef, SomeUnicodeString, SomeByteArray,
+    ASCII_STR, UTF8_STR, UNKNOWN_STR)
 from rpython.annotator.bookkeeper import getbookkeeper, immutablevalue
 from rpython.annotator import builtin
 from rpython.annotator.binaryop import _clone ## XXX where to put this?
@@ -459,12 +460,18 @@ class __extend__(SomeString,
         return SomeInteger(nonneg=True)
 
     def method_strip(self, chr=None):
+        if self.str_type in (UNKNOWN_STR, ASCII_STR) or chr is None:
+            return self.tobasestring()
         return self.basestringclass(no_nul=self.no_nul)
 
     def method_lstrip(self, chr=None):
+        if self.str_type in (UNKNOWN_STR, ASCII_STR) or chr is None:
+            return self.tobasestring()
         return self.basestringclass(no_nul=self.no_nul)
 
     def method_rstrip(self, chr=None):
+        if self.str_type in (UNKNOWN_STR, ASCII_STR) or chr is None:
+            return self.tobasestring()
         return self.basestringclass(no_nul=self.no_nul)
 
     def method_join(self, s_list):
@@ -475,8 +482,8 @@ class __extend__(SomeString,
             if isinstance(self, SomeUnicodeString):
                 return immutablevalue(u"")
             return immutablevalue("")
-        no_nul = self.no_nul and s_item.no_nul
-        return self.basestringclass(no_nul=no_nul)
+        return self.tobasestring(no_nul=s_item.no_nul,
+                                 str_type=s_item.str_type)
 
     def iter(self):
         return SomeIterator(self)
@@ -486,24 +493,48 @@ class __extend__(SomeString,
         return self.basecharclass()
 
     def method_split(self, patt, max=-1):
-        if max == -1 and patt.is_constant() and patt.const == "\0":
-            no_nul = True
+        if (isinstance(self, SomeUnicodeString) or
+            self.str_type in (ASCII_STR, UNKNOWN_STR)):
+            str_type = ASCII_STR
+        elif patt.str_type >= UTF8_STR:
+            str_type = ASCII_STR
         else:
-            no_nul = self.no_nul
-        s_item = self.basestringclass(no_nul=no_nul)
+            str_type = UNKNOWN_STR
+        s_item = self.tobasestring(str_type=str_type)
+        if max == -1 and patt.is_constant() and patt.const == "\0":
+            s_item.no_nul = True
         return getbookkeeper().newlist(s_item)
 
     def method_rsplit(self, patt, max=-1):
-        s_item = self.basestringclass(no_nul=self.no_nul)
+        if (isinstance(self, SomeUnicodeString) or
+            self.str_type in (ASCII_STR, UNKNOWN_STR)):
+            str_type = ASCII_STR
+        elif patt.str_type >= UTF8_STR:
+            str_type = ASCII_STR
+        else:
+            str_type = UNKNOWN_STR
+        s_item = self.tobasestring(str_type=str_type)
+        if max == -1 and patt.is_constant() and patt.const == "\0":
+            s_item.no_nul = True
         return getbookkeeper().newlist(s_item)
 
     def method_replace(self, s1, s2):
-        return self.basestringclass(no_nul=self.no_nul and s2.no_nul)
+        if (isinstance(self, SomeUnicodeString) or
+            self.str_type in (ASCII_STR, UNKNOWN_STR)):
+            str_type = s2.str_type
+        elif patt.str_type >= UTF8_STR:
+            str_type = s2.str_type
+        else:
+            str_type = UNKNOWN_STR
+        s_res = self.tobasestring(no_nul=s2.no_nul, str_type=str_type)
+        if s1.is_constant() and s1.const == "\0" and s2.no_nul:
+            s_res.no_nul = True
+        return s_res
 
     def getslice(self, s_start, s_stop):
         check_negative_slice(s_start, s_stop)
-        result = self.basestringclass(no_nul=self.no_nul)
-        return result
+        str_type = ASCII_STR if self.str_type == ASCII_STR else UNKNOWN_STR
+        return self.tobasestring(str_type=str_type)
 
     def op_contains(self, s_element):
         if s_element.is_constant() and s_element.const == "\0":
@@ -534,7 +565,13 @@ class __extend__(SomeUnicodeString):
         enc = s_enc.const
         if enc not in ('ascii', 'latin-1', 'utf-8'):
             raise AnnotatorError("Encoding %s not supported for unicode" % (enc,))
-        return SomeString()
+        if enc == 'ascii':
+            str_type = ASCII_STR
+        elif enc == 'utf-8':
+            str_type = UTF8_STR
+        else:
+            str_type = UNKNOWN_STR
+        return SomeString(no_nul=self.no_nul, str_type=str_type)
     method_encode.can_only_throw = [UnicodeEncodeError]
 
 
@@ -549,13 +586,13 @@ class __extend__(SomeString):
         return s_Bool
 
     def method_upper(self):
-        return SomeString()
+        return self.nonnoneify()
 
     def method_lower(self):
-        return SomeString()
+        return self.nonnoneify()
 
     def method_splitlines(self, s_keep_newlines=None):
-        s_list = getbookkeeper().newlist(self.basestringclass())
+        s_list = getbookkeeper().newlist(self.tobasestring())
         # Force the list to be resizable because ll_splitlines doesn't
         # preallocate the list.
         s_list.listdef.listitem.resize()
@@ -567,7 +604,13 @@ class __extend__(SomeString):
         enc = s_enc.const
         if enc not in ('ascii', 'latin-1', 'utf-8'):
             raise AnnotatorError("Encoding %s not supported for strings" % (enc,))
-        return SomeUnicodeString()
+        if enc == 'ascii':
+            str_type = ASCII_STR
+        elif enc == 'utf-8':
+            str_type = UTF8_STR
+        else:
+            str_type = UNKNOWN_STR
+        return SomeUnicodeString(no_nul=self.no_nul, str_type=str_type)
     method_decode.can_only_throw = [UnicodeDecodeError]
 
 class __extend__(SomeChar, SomeUnicodeCodePoint):

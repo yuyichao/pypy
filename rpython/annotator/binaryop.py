@@ -12,7 +12,7 @@ from rpython.annotator.model import (
     SomeByteArray, SomeWeakRef, SomeSingleFloat,
     SomeLongFloat, SomeType, SomeConstantType, unionof, UnionError,
     read_can_only_throw, add_knowntypedata,
-    merge_knowntypedata,)
+    merge_knowntypedata, UNKNOWN_STR, UTF8_STR, ASCII_STR,)
 from rpython.annotator.bookkeeper import getbookkeeper, immutablevalue
 from rpython.flowspace.model import Variable, Constant
 from rpython.flowspace.operation import op
@@ -373,11 +373,14 @@ class __extend__(pairtype(SomeString, SomeString)):
     def union((str1, str2)):
         can_be_None = str1.can_be_None or str2.can_be_None
         no_nul = str1.no_nul and str2.no_nul
-        return SomeString(can_be_None=can_be_None, no_nul=no_nul)
+        str_type = min(str1.str_type, str2.str_type)
+        return SomeString(can_be_None=can_be_None, no_nul=no_nul,
+                          str_type=str_type)
 
     def add((str1, str2)):
         # propagate const-ness to help getattr(obj, 'prefix' + const_name)
-        result = SomeString(no_nul=str1.no_nul and str2.no_nul)
+        result = SomeString(no_nul=str1.no_nul and str2.no_nul,
+                            str_type=min(str1.str_type, str2.str_type))
         if str1.is_immutable_constant() and str2.is_immutable_constant():
             result.const = str1.const + str2.const
         return result
@@ -408,7 +411,8 @@ class __extend__(pairtype(SomeChar, SomeChar)):
 
     def union((chr1, chr2)):
         no_nul = chr1.no_nul and chr2.no_nul
-        return SomeChar(no_nul=no_nul)
+        str_type = min(chr1.str_type, chr2.str_type)
+        return SomeChar(no_nul=no_nul, str_type=str_type)
 
 
 class __extend__(pairtype(SomeChar, SomeUnicodeCodePoint),
@@ -418,10 +422,14 @@ class __extend__(pairtype(SomeChar, SomeUnicodeCodePoint),
 
 class __extend__(pairtype(SomeUnicodeCodePoint, SomeUnicodeCodePoint)):
     def union((uchr1, uchr2)):
-        return SomeUnicodeCodePoint()
+        no_nul = uchr1.no_nul and uchr2.no_nul
+        str_type = min(uchr1.str_type, uchr2.str_type)
+        return SomeUnicodeCodePoint(no_nul=no_nul, str_type=str_type)
 
     def add((chr1, chr2)):
-        return SomeUnicodeString()
+        no_nul = uchr1.no_nul and uchr2.no_nul
+        str_type = min(uchr1.str_type, uchr2.str_type)
+        return SomeUnicodeString(no_nul=no_nul, str_type=str_type)
 
 class __extend__(pairtype(SomeString, SomeUnicodeString),
                  pairtype(SomeUnicodeString, SomeString)):
@@ -443,16 +451,19 @@ class __extend__(pairtype(SomeString, SomeTuple),
                 raise AnnotatorError(
                     "string formatting mixing strings and unicode not supported")
         no_nul = s_string.no_nul
+        str_type = s_string.str_type
         for s_item in s_tuple.items:
             if isinstance(s_item, SomeFloat):
-                pass   # or s_item is a subclass, like SomeInteger
-            elif (isinstance(s_item, SomeString) or
-                  isinstance(s_item, SomeUnicodeString)) and s_item.no_nul:
-                pass
+                continue   # or s_item is a subclass, like SomeInteger
+            elif isinstance(s_item, (SomeString, SomeUnicodeString)):
+                if not s_item.no_nul:
+                    no_nul = False
+                str_type = min(str_type, s_item.str_type)
             else:
                 no_nul = False
+                str_type = UNKNOWN_STR
                 break
-        return s_string.__class__(no_nul=no_nul)
+        return s_string.__class__(no_nul=no_nul, str_type=str_type)
 
 
 class __extend__(pairtype(SomeString, SomeObject),
@@ -616,52 +627,59 @@ class __extend__(pairtype(SomeList, SomeInteger)):
 class __extend__(pairtype(SomeString, SomeInteger)):
 
     def getitem((str1, int2)):
-        return SomeChar(no_nul=str1.no_nul)
+        str_type = ASCII_STR if str1.str_type == ASCII_STR else UNKNOWN_STR
+        return SomeChar(no_nul=str1.no_nul, str_type=str_type)
     getitem.can_only_throw = []
 
     getitem_key = getitem
 
     def getitem_idx((str1, int2)):
-        return SomeChar(no_nul=str1.no_nul)
+        str_type = ASCII_STR if str1.str_type == ASCII_STR else UNKNOWN_STR
+        return SomeChar(no_nul=str1.no_nul, str_type=str_type)
     getitem_idx.can_only_throw = [IndexError]
 
     getitem_idx_key = getitem_idx
 
     def mul((str1, int2)): # xxx do we want to support this
-        return SomeString(no_nul=str1.no_nul)
+        return str1.tobasestring()
 
 class __extend__(pairtype(SomeUnicodeString, SomeInteger)):
     def getitem((str1, int2)):
-        return SomeUnicodeCodePoint()
+        return SomeUnicodeCodePoint(no_nul=str1.no_nul,
+                                    str_type=str1.str_type)
     getitem.can_only_throw = []
 
     getitem_key = getitem
 
     def getitem_idx((str1, int2)):
-        return SomeUnicodeCodePoint()
+        return SomeUnicodeCodePoint(no_nul=str1.no_nul,
+                                    str_type=str1.str_type)
     getitem_idx.can_only_throw = [IndexError]
 
     getitem_idx_key = getitem_idx
 
     def mul((str1, int2)): # xxx do we want to support this
-        return SomeUnicodeString()
+        return str1.tobasestring()
 
 class __extend__(pairtype(SomeInteger, SomeString),
                  pairtype(SomeInteger, SomeUnicodeString)):
 
     def mul((int1, str2)): # xxx do we want to support this
-        return str2.basestringclass()
+        return str2.tobasestring()
 
 class __extend__(pairtype(SomeUnicodeCodePoint, SomeUnicodeString),
                  pairtype(SomeUnicodeString, SomeUnicodeCodePoint),
                  pairtype(SomeUnicodeString, SomeUnicodeString)):
     def union((str1, str2)):
         return SomeUnicodeString(can_be_None=str1.can_be_none() or
-                                 str2.can_be_none())
+                                 str2.can_be_none(),
+                                 no_nul=str1.no_nul and str2.no_nul,
+                                 str_type=min(str1.str_type, str2.str_type))
 
     def add((str1, str2)):
         # propagate const-ness to help getattr(obj, 'prefix' + const_name)
-        result = SomeUnicodeString()
+        result = SomeUnicodeString(no_nul=str1.no_nul and str2.no_nul,
+                                   str_type=min(str1.str_type, str2.str_type))
         if str1.is_immutable_constant() and str2.is_immutable_constant():
             result.const = str1.const + str2.const
         return result

@@ -3,7 +3,8 @@
 import sys
 
 from rpython.annotator.model import (SomeObject, SomeString, s_None, SomeChar,
-    SomeInteger, SomeUnicodeCodePoint, SomeUnicodeString, SomePBC)
+    SomeInteger, SomeUnicodeCodePoint, SomeUnicodeString, SomePBC, UTF8_STR,
+    ASCII_STR)
 from rpython.rtyper.llannotation import SomePtr
 from rpython.rlib import jit
 from rpython.rlib.objectmodel import newlist_hint, specialize
@@ -555,3 +556,158 @@ class Entry(ExtRegistryEntry):
         hop.exception_cannot_occur()
 
 
+#___________________________________________________________________
+# Support functions for SomeString.str_type
+
+def is_ascii_str(s):
+    for c in s:
+        if ord(c) >= 128:
+            return False
+    return True
+
+
+def assert_ascii(s):
+    assert is_ascii_str(s), 'Non-Ascii byte in string'
+    return s
+
+
+class Entry(ExtRegistryEntry):
+    _about_ = assert_ascii
+
+    def compute_result_annotation(self, s_obj):
+        if s_None.contains(s_obj):
+            return s_obj
+        assert isinstance(s_obj, (SomeString, SomeUnicodeString))
+        if s_obj.str_type >= ASCII_STR:
+            return s_obj
+        new_s_obj = SomeObject.__new__(s_obj.__class__)
+        new_s_obj.__dict__ = s_obj.__dict__.copy()
+        new_s_obj.str_type = ASCII_STR
+        return new_s_obj
+
+    def specialize_call(self, hop):
+        hop.exception_cannot_occur()
+        return hop.inputarg(hop.args_r[0], arg=0)
+
+
+def check_ascii(s):
+    """A 'probe' to trigger a failure at translation time, if the
+    string was not proved to only contain ASCII characters."""
+    assert is_ascii_str(s), 'Non-Ascii byte in string'
+
+
+class Entry(ExtRegistryEntry):
+    _about_ = check_ascii
+
+    def compute_result_annotation(self, s_obj):
+        if not isinstance(s_obj, (SomeString, SomeUnicodeString)):
+            return s_obj
+        if s_obj.str_type < ASCII_STR:
+            raise ValueError("Value is not ascii only")
+
+    def specialize_call(self, hop):
+        hop.exception_cannot_occur()
+
+
+def is_utf8_str(s):
+    from rpython.rlib.runicode import utf8_code_length
+    size = len(s)
+    if size == 0:
+        return True
+    pos = 0
+    while pos < size:
+        ordch1 = ord(s[pos])
+        if ordch1 < 0x80:
+            pos += 1
+            continue
+
+        n = utf8_code_length[ordch1]
+        if pos + n > size:
+            return False
+        if n == 2:
+            ordch2 = ord(s[pos + 1])
+            if (ordch2 >> 6) != 0x2:   # 0b10
+                return False
+        elif n == 3:
+            ordch2 = ord(s[pos + 1])
+            ordch3 = ord(s[pos + 2])
+            if (ordch2 >> 6 != 0x2 or ordch3 >> 6 != 0x2 or    # 0b10
+                (ordch1 == 0xe0 and ordch2 < 0xa0) or
+                (ordch1 == 0xed and ordch2 > 0x9f)):
+                return False
+        elif n == 4:
+            ordch2 = ord(s[pos + 1])
+            ordch3 = ord(s[pos + 2])
+            ordch4 = ord(s[pos + 3])
+            if (ordch2 >> 6 != 0x2 or ordch3 >> 6 != 0x2 or
+                ordch4 >> 6 != 0x2 or (ordch1 == 0xf0 and ordch2 < 0x90) or
+                (ordch1 == 0xf4 and ordch2 > 0x8f)):
+                return False
+        else:
+            # Shouldn't get here but whatever...
+            return False
+        pos += n
+    return True
+
+
+def is_utf8_unicode(s):
+    for c in s:
+        if 0xD800 <= ord(c) <= 0xDFFF:
+            return False
+    return True
+
+
+def is_utf8(s):
+    """check if the string is a valid utf-8 string
+    (return True for None, False for other non-string objects)
+    """
+    if isinstance(s, str):
+        return is_utf8_str(s)
+    elif isinstance(s, unicode):
+        return is_utf8_unicode(s)
+    elif s is None:
+        return True
+    return False
+
+
+def assert_utf8(s):
+    assert is_utf8(s), 'Non-Utf8 byte in string'
+    return s
+
+
+class Entry(ExtRegistryEntry):
+    _about_ = assert_utf8
+
+    def compute_result_annotation(self, s_obj):
+        if s_None.contains(s_obj):
+            return s_obj
+        assert isinstance(s_obj, (SomeString, SomeUnicodeString))
+        if s_obj.str_type >= UTF8_STR:
+            return s_obj
+        new_s_obj = SomeObject.__new__(s_obj.__class__)
+        new_s_obj.__dict__ = s_obj.__dict__.copy()
+        new_s_obj.str_type = UTF8_STR
+        return new_s_obj
+
+    def specialize_call(self, hop):
+        hop.exception_cannot_occur()
+        return hop.inputarg(hop.args_r[0], arg=0)
+
+
+def check_utf8(s):
+    """A 'probe' to trigger a failure at translation time, if the
+    string was not proved to only contain UTF8 characters."""
+    assert is_utf8(s), 'Non-Utf8 byte in string'
+
+
+class Entry(ExtRegistryEntry):
+    _about_ = check_utf8
+
+    def compute_result_annotation(self, s_obj):
+        if not isinstance(s_obj, (SomeString, SomeUnicodeString)):
+            return s_obj
+        if s_obj.str_type < UTF8_STR:
+            raise ValueError("Value is not utf8_only")
+
+    def specialize_call(self, hop):
+        hop.exception_cannot_occur()

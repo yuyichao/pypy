@@ -1495,7 +1495,8 @@ class TestAnnotateTestCase:
             return e,c
         a = self.RPythonAnnotator()
         s = a.build_types(f, [int, str, a.bookkeeper.immutablevalue(1.0), a.bookkeeper.immutablevalue('d'), a.bookkeeper.immutablevalue('e')])
-        assert s == annmodel.SomeTuple([annmodel.SomeChar(), a.bookkeeper.immutablevalue(1.0)])
+        assert s == annmodel.SomeTuple([annmodel.SomeChar(
+            str_type=annmodel.ASCII_STR), a.bookkeeper.immutablevalue(1.0)])
 
     def test_bool_coalesce2(self):
         def f(a,b,a1,b1,c,d,e):
@@ -1508,8 +1509,9 @@ class TestAnnotateTestCase:
                               a.bookkeeper.immutablevalue(1.0),
                               a.bookkeeper.immutablevalue('d'),
                               a.bookkeeper.immutablevalue('e')])
-        assert s == annmodel.SomeTuple([annmodel.SomeChar(),
-                                        a.bookkeeper.immutablevalue(1.0)])
+        assert s == annmodel.SomeTuple([
+            annmodel.SomeChar(str_type=annmodel.ASCII_STR),
+            a.bookkeeper.immutablevalue(1.0)])
 
     def test_bool_coalesce_sanity(self):
         def f(a):
@@ -2124,6 +2126,43 @@ class TestAnnotateTestCase:
                               annmodel.SomeInteger()])
         assert isinstance(s, annmodel.SomeString)
         assert s.no_nul
+
+    def test_iteritems_ascii(self):
+        def it(d):
+            return d.iteritems()
+        def f():
+            d0 = {'1a': '2a', '3': '4'}
+            for item in it(d0):
+                return "%s=%s" % item
+            raise ValueError
+        a = self.RPythonAnnotator()
+        s = a.build_types(f, [])
+        assert isinstance(s, annmodel.SomeString)
+        assert s.str_type == annmodel.ASCII_STR
+
+    def test_mul_ascii(self):
+        def f(s):
+            return s * 10
+        a = self.RPythonAnnotator()
+        s = a.build_types(f, [annmodel.SomeString(str_type=annmodel.ASCII_STR)])
+        assert isinstance(s, annmodel.SomeString)
+        assert s.str_type == annmodel.ASCII_STR
+
+    def test_getitem_ascii(self):
+        def f(s, n):
+            if n == 1:
+                return s[0]
+            elif n == 2:
+                return s[1]
+            elif n == 3:
+                return s[1:]
+            return s
+        a = self.RPythonAnnotator()
+
+        s = a.build_types(f, [annmodel.SomeString(str_type=annmodel.ASCII_STR),
+                              annmodel.SomeInteger()])
+        assert isinstance(s, annmodel.SomeString)
+        assert s.str_type
 
     def test_non_none_and_none_with_isinstance(self):
         class A(object):
@@ -4196,6 +4235,35 @@ class TestAnnotateTestCase:
         s = a.build_types(f, [int])
         assert isinstance(s, annmodel.SomeTuple)
         assert s.items[1].const == 42
+
+    def test_assert_ascii(self):
+        from rpython.rlib.rstring import assert_ascii
+
+        def f(x):
+            return assert_ascii(x)
+
+        a = self.RPythonAnnotator()
+        s = a.build_types(f, [str])
+        assert isinstance(s, annmodel.SomeString)
+        assert s.str_type == annmodel.ASCII_STR
+
+    def test_encode_ascii(self):
+        def f(x):
+            return x.encode('ascii')
+
+        a = self.RPythonAnnotator()
+        s = a.build_types(f, [unicode])
+        assert isinstance(s, annmodel.SomeString)
+        assert s.str_type == annmodel.ASCII_STR
+
+    def test_encode_utf8(self):
+        def f(x):
+            return x.encode('utf-8')
+
+        a = self.RPythonAnnotator()
+        s = a.build_types(f, [unicode])
+        assert isinstance(s, annmodel.SomeString)
+        assert s.str_type == annmodel.UTF8_STR
 
 
 def g(n):

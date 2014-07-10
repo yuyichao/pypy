@@ -6,6 +6,8 @@ from pypy.interpreter.pyparser.pytokenize import tabsize, alttabsize, whiteSpace
     triple_quoted, endDFAs, single_quoted, pseudoDFA
 from pypy.interpreter.astcompiler import consts
 
+from rpython.rlib.rstring import assert_ascii
+
 NAMECHARS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_'
 NUMCHARS = '0123456789'
 ALNUMCHARS = NAMECHARS + NUMCHARS
@@ -40,7 +42,7 @@ def match_encoding_declaration(comment):
         else:
             break
     if encoding != '':
-        return encoding
+        return assert_ascii(encoding)
     return None
 
 
