@@ -3,7 +3,7 @@ Symbol tabling building.
 """
 
 from pypy.interpreter.astcompiler import ast, misc
-from pypy.interpreter.pyparser.error import SyntaxError
+from pypy.interpreter.pyparser.error import SyntaxError, syntax_error_utf8
 
 # These are for internal use only:
 SYM_BLANK = 0
@@ -67,9 +67,10 @@ class Scope(object):
         if mangled in self.roles:
             old_role = self.roles[mangled]
             if old_role & SYM_PARAM and role & SYM_PARAM:
-                err = "duplicate argument '%s' in function definition" % \
-                    (identifier,)
-                raise SyntaxError(err, self.lineno, self.col_offset)
+                # TODO
+                fmt = u"duplicate argument '%s' in function definition"
+                raise syntax_error_utf8(fmt, identifier, self.lineno,
+                                        self.col_offset)
             new_role |= old_role
         self.roles[mangled] = new_role
         if role & SYM_PARAM:
@@ -86,12 +87,12 @@ class Scope(object):
 
     def note_yield(self, yield_node):
         """Called when a yield is found."""
-        raise SyntaxError("'yield' outside function", yield_node.lineno,
+        raise SyntaxError(u"'yield' outside function", yield_node.lineno,
                           yield_node.col_offset)
 
     def note_return(self, ret):
         """Called when a return statement is found."""
-        raise SyntaxError("return outside function", ret.lineno,
+        raise SyntaxError(u"return outside function", ret.lineno,
                           ret.col_offset)
 
     def note_import_star(self, imp):
@@ -113,11 +114,11 @@ class Scope(object):
         """Decide on the scope of a name."""
         if flags & SYM_GLOBAL:
             if flags & SYM_PARAM:
-                err = "name '%s' is parameter and global" % (name,)
-                raise SyntaxError(err, self.lineno, self.col_offset)
+                fmt = u"name '%s' is parameter and global"
+                raise syntax_error_utf8(fmt, name, self.lineno, self.col_offset)
             if flags & SYM_NONLOCAL:
-                err = "name '%s' is nonlocal and global" % (name,)
-                raise SyntaxError(err, self.lineno, self.col_offset)
+                fmt = u"name '%s' is nonlocal and global"
+                raise syntax_error_utf8(fmt, name, self.lineno, self.col_offset)
             self.symbols[name] = SCOPE_GLOBAL_EXPLICIT
             globs[name] = None
             if bound:
@@ -127,14 +128,14 @@ class Scope(object):
                     pass
         elif flags & SYM_NONLOCAL:
             if flags & SYM_PARAM:
-                err = "name '%s' is parameter and nonlocal" % (name,)
-                raise SyntaxError(err, self.lineno, self.col_offset)
+                fmt = u"name '%s' is parameter and nonlocal"
+                raise syntax_error_utf8(fmt, name, self.lineno, self.col_offset)
             if bound is None:
-                err = "nonlocal declaration not allowed at module level"
+                err = u"nonlocal declaration not allowed at module level"
                 raise SyntaxError(err, self.lineno, self.col_offset)
             if name not in bound:
-                err = "no binding for nonlocal '%s' found" % (name,)
-                raise SyntaxError(err, self.lineno, self.col_offset)
+                fmt = u"no binding for nonlocal '%s' found"
+                raise syntax_error_utf8(fmt, name, self.lineno, self.col_offset)
             self.symbols[name] = SCOPE_FREE
             free[name] = None
         elif flags & SYM_BOUND:
@@ -245,7 +246,7 @@ class FunctionScope(Scope):
 
     def note_yield(self, yield_node):
         if self.return_with_value:
-            raise SyntaxError("'return' with argument inside generator",
+            raise SyntaxError(u"'return' with argument inside generator",
                               self.ret.lineno, self.ret.col_offset)
         self.is_generator = True
         if self._in_try_body_depth > 0:
@@ -254,7 +255,7 @@ class FunctionScope(Scope):
     def note_return(self, ret):
         if ret.value:
             if self.is_generator:
-                raise SyntaxError("'return' with argument inside generator",
+                raise SyntaxError(u"'return' with argument inside generator",
                                   ret.lineno, ret.col_offset)
             self.return_with_value = True
             self.ret = ret
@@ -401,7 +402,7 @@ class SymtableBuilder(ast.GenericASTVisitor):
         for alias in imp.names:
             if self._visit_alias(alias):
                 if self.scope.note_import_star(imp):
-                    msg = "import * only allowed at module level"
+                    msg = u"import * only allowed at module level"
                     raise SyntaxError(msg, imp.lineno, imp.col_offset,
                                       filename=self.compile_info.filename)
 

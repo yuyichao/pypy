@@ -166,6 +166,21 @@ class __extend__(SomeObject):
 
 class __extend__(SomeFloat):
 
+    def str(self):
+        return SomeString(no_nul=True, str_type=ASCII_STR)
+
+    def unicode(self):
+        return SomeUnicodeString(no_nul=True, str_type=ASCII_STR)
+
+    def repr(self):
+        return SomeString(no_nul=True, str_type=ASCII_STR)
+
+    def hex(self):
+        return SomeString(no_nul=True, str_type=ASCII_STR)
+
+    def oct(self):
+        return SomeString(no_nul=True, str_type=ASCII_STR)
+
     def pos(self):
         return self
 

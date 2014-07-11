@@ -1,6 +1,7 @@
 from pypy.interpreter import gateway
 from rpython.rlib.objectmodel import we_are_translated
 from rpython.rlib.unroll import unrolling_iterable
+from rpython.rlib.rstring import assert_ascii
 
 
 app = gateway.applevel("""
@@ -71,7 +72,7 @@ class ForbiddenNameAssignment(Exception):
 def check_forbidden_name(name, node=None):
     """Raise an error if the name cannot be assigned to."""
     if name in ("None", "__debug__"):
-        raise ForbiddenNameAssignment(name, node)
+        raise ForbiddenNameAssignment(assert_ascii(name), node)
     # XXX Warn about using True and False
 
 

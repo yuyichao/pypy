@@ -5,6 +5,9 @@ from pypy.interpreter.pyparser.pygram import syms, tokens
 from pypy.interpreter.pyparser.error import SyntaxError
 from pypy.interpreter.pyparser import parsestring
 
+from rpython.rlib.rstring import check_ascii
+from rpython.rlib.runicode import str_decode_utf_8
+
 
 def ast_from_node(space, node, compile_info):
     """Turn a parse tree, node, to AST."""
@@ -104,10 +107,12 @@ class ASTBuilder(object):
 
     def error(self, msg, n):
         """Raise a SyntaxError with the lineno and column set to n's."""
+        assert isinstance(msg, unicode)
         raise SyntaxError(msg, n.lineno, n.column,
                           filename=self.compile_info.filename)
 
     def error_ast(self, msg, ast_node):
+        assert isinstance(msg, unicode)
         raise SyntaxError(msg, ast_node.lineno, ast_node.col_offset,
                           filename=self.compile_info.filename)
 
@@ -115,7 +120,8 @@ class ASTBuilder(object):
         try:
             misc.check_forbidden_name(name)
         except misc.ForbiddenNameAssignment, e:
-            self.error("cannot assign to %s" % (e.name,), node)
+            check_ascii(e.name)
+            self.error(u"cannot assign to %s" % e.name.decode('ascii'), node)
 
     def new_identifier(self, name):
         return misc.new_identifier(self.space, name)
@@ -125,9 +131,12 @@ class ASTBuilder(object):
         try:
             expr.set_context(ctx)
         except ast.UnacceptableExpressionContext, e:
-            self.error_ast(e.msg, e.node)
+            check_ascii(e.msg)
+            self.error_ast(e.msg.decode('ascii'), e.node)
         except misc.ForbiddenNameAssignment, e:
-            self.error_ast("cannot assign to %s" % (e.name,), e.node)
+            check_ascii(e.name)
+            self.error_ast((u"cannot assign to %s" %
+                            e.name.decode('ascii')), e.node)
 
     def handle_del_stmt(self, del_node):
         targets = self.handle_exprlist(del_node.children[1], ast.Del)
@@ -237,7 +246,7 @@ class ASTBuilder(object):
             elif after_import_type == syms.import_as_names:
                 names_node = import_node.children[i]
                 if len(names_node.children) % 2 == 0:
-                    self.error("trailing comma is only allowed with "
+                    self.error(u"trailing comma is only allowed with "
                                "surronding parenthesis", names_node)
             else:
                 raise AssertionError("unknown import node")
@@ -562,7 +571,7 @@ class ASTBuilder(object):
         vararg = None
         varargann = None
         if n_pos + n_kwdonly > 255:
-            self.error("more than 255 arguments", arguments_node)
+            self.error(u"more than 255 arguments", arguments_node)
         # process args
         i = 0
         have_default = False
@@ -577,13 +586,13 @@ class ASTBuilder(object):
                     i += 2
                     have_default = True
                 elif have_default:
-                    msg = "non-default argument follows default argument"
+                    msg = u"non-default argument follows default argument"
                     self.error(msg, arguments_node)
                 pos.append(self.handle_arg(arg))
                 i += 2
             elif arg_type == tokens.STAR:
                 if i + 1 >= child_count:
-                    self.error("named arguments must follow bare *",
+                    self.error(u"named arguments must follow bare *",
                                arguments_node)
                 name_node = arguments_node.children[i + 1]
                 keywordonly_args = []
@@ -619,7 +628,7 @@ class ASTBuilder(object):
 
     def handle_keywordonly_args(self, arguments_node, i, kwonly, kwdefaults):
         if kwonly is None:
-            self.error("named arguments must follows bare *",
+            self.error(u"named arguments must follows bare *",
                        arguments_node.children[i])
         child_count = len(arguments_node.children)
         while i < child_count:
@@ -732,7 +741,7 @@ class ASTBuilder(object):
             for i in range(0, len(stmt.children) - 2, 2):
                 target_node = stmt.children[i]
                 if target_node.type == syms.yield_expr:
-                    self.error("assignment to yield expression not possible",
+                    self.error(u"assignment to yield expression not possible",
                                target_node)
                 target_expr = self.handle_testlist(target_node)
                 self.set_context(target_expr, ast.Store)
@@ -863,9 +872,9 @@ class ASTBuilder(object):
             elif comp_type == tokens.NOTEQUAL:
                 flufl = self.compile_info.flags & consts.CO_FUTURE_BARRY_AS_BDFL
                 if flufl and comp_node.value == '!=':
-                    self.error('invalid comparison', comp_node)
+                    self.error(u'invalid comparison', comp_node)
                 elif not flufl and comp_node.value == '<>':
-                    self.error('invalid comparison', comp_node)
+                    self.error(u'invalid comparison', comp_node)
                 return ast.NotEq
             elif comp_type == tokens.NAME:
                 if comp_node.value == "is":
@@ -1008,10 +1017,10 @@ class ASTBuilder(object):
                     keyword_count += 1
         if generator_count > 1 or \
                 (generator_count and (keyword_count or arg_count)):
-            self.error("Generator expression must be parenthesized "
+            self.error(u"Generator expression must be parenthesized "
                        "if not sole argument", args_node)
         if arg_count + keyword_count + generator_count > 255:
-            self.error("more than 255 arguments", args_node)
+            self.error(u"more than 255 arguments", args_node)
         args = []
         keywords = []
         used_keywords = {}
@@ -1025,10 +1034,10 @@ class ASTBuilder(object):
                 if len(argument.children) == 1:
                     expr_node = argument.children[0]
                     if keywords:
-                        self.error("non-keyword arg after keyword arg",
+                        self.error(u"non-keyword arg after keyword arg",
                                    expr_node)
                     if variable_arg:
-                        self.error("only named arguments may follow "
+                        self.error(u"only named arguments may follow "
                                    "*expression", expr_node)
                     args.append(self.handle_expr(expr_node))
                 elif argument.children[1].type == syms.comp_for:
@@ -1037,14 +1046,14 @@ class ASTBuilder(object):
                     keyword_node = argument.children[0]
                     keyword_expr = self.handle_expr(keyword_node)
                     if isinstance(keyword_expr, ast.Lambda):
-                        self.error("lambda cannot contain assignment",
+                        self.error(u"lambda cannot contain assignment",
                                    keyword_node)
                     elif not isinstance(keyword_expr, ast.Name):
-                        self.error("keyword can't be an expression",
+                        self.error(u"keyword can't be an expression",
                                    keyword_node)
                     keyword = keyword_expr.id
                     if keyword in used_keywords:
-                        self.error("keyword argument repeated", keyword_node)
+                        self.error(u"keyword argument repeated", keyword_node)
                     used_keywords[keyword] = None
                     self.check_forbidden_name(keyword, keyword_node)
                     keyword_value = self.handle_expr(argument.children[2])
@@ -1126,7 +1135,9 @@ class ASTBuilder(object):
                         e.match(space, space.w_ValueError)):
                     raise
                 # Unicode/ValueError in literal: turn into SyntaxError
-                self.error(e.errorstr(space), atom_node)
+                err_str = e.errorstr(space)
+                self.error(str_decode_utf_8(err_str, len(err_str),
+                                            'replace')[0], atom_node)
                 sub_strings_w = [] # please annotator
             # Implement implicit string concatenation.
             w_string = sub_strings_w[0]
@@ -1136,8 +1147,8 @@ class ASTBuilder(object):
                 except error.OperationError, e:
                     if not e.match(space, space.w_TypeError):
                         raise
-                    self.error("cannot mix bytes and nonbytes literals",
-                              atom_node)
+                    self.error(u"cannot mix bytes and nonbytes literals",
+                               atom_node)
                 # UnicodeError in literal: turn into SyntaxError
             strdata = space.isinstance_w(w_string, space.w_unicode)
             node = ast.Str if strdata else ast.Bytes
