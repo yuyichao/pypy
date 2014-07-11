@@ -142,7 +142,7 @@ def _get_relative_name(space, modulename, level, w_globals):
             if not e.match(space, space.w_TypeError):
                 raise
             raise OperationError(space.w_ValueError, space.wrap(
-                "__package__ set to non-string"))
+                u"__package__ set to non-string"))
 
     if ctxt_package is not None:
         # __package__ is set, so use it
@@ -199,7 +199,7 @@ def _get_relative_name(space, modulename, level, w_globals):
         dot_position = _get_dot_position(ctxt_name, m)
         if dot_position < 0:
             if level > 0:
-                msg = "Attempted relative import in non-package"
+                msg = u"Attempted relative import in non-package"
                 raise OperationError(space.w_ValueError, w(msg))
             rel_modulename = ''
             rel_level = 0
@@ -209,14 +209,14 @@ def _get_relative_name(space, modulename, level, w_globals):
 
         if ctxt_w_path is not None:
             # __path__ is set, so __name__ is already the package name
-            space.setitem(w_globals, w("__package__"), ctxt_w_name)
+            space.setitem(w_globals, w(u"__package__"), ctxt_w_name)
         else:
             # Normal module, so work out the package name if any
             last_dot_position = ctxt_name.rfind('.')
             if last_dot_position < 0:
-                space.setitem(w_globals, w("__package__"), space.w_None)
+                space.setitem(w_globals, w(u"__package__"), space.w_None)
             else:
-                space.setitem(w_globals, w("__package__"),
+                space.setitem(w_globals, w(u"__package__"),
                               w(ctxt_name[:last_dot_position]))
 
         if modulename:
@@ -232,11 +232,9 @@ def _get_relative_name(space, modulename, level, w_globals):
 def importhook(space, name, w_globals=None,
                w_locals=None, w_fromlist=None, level=-1):
     modulename = name
-    if not modulename and level < 0:
-        raise OperationError(
-            space.w_ValueError,
-            space.wrap("Empty module name"))
     w = space.wrap
+    if not modulename and level < 0:
+        raise OperationError(space.w_ValueError, w(u"Empty module name"))
 
     if w_fromlist is not None and space.is_true(w_fromlist):
         fromlist_w = space.fixedview(w_fromlist)
@@ -310,7 +308,7 @@ def absolute_import_try(space, modulename, baselevel, fromlist_w):
         w_mod = check_sys_modules_w(space, modulename)
         first = w_mod
         if fromlist_w is not None and w_mod is not None:
-            w_path = try_getattr(space, w_mod, space.wrap('__path__'))
+            w_path = try_getattr(space, w_mod, space.wrap(u'__path__'))
     else:
         level = 0
         first = None
@@ -325,13 +323,13 @@ def absolute_import_try(space, modulename, baselevel, fromlist_w):
             if level == baselevel:
                 first = w_mod
             if fromlist_w is not None:
-                w_path = try_getattr(space, w_mod, space.wrap('__path__'))
+                w_path = try_getattr(space, w_mod, space.wrap(u'__path__'))
             level += 1
     if fromlist_w is not None:
         if w_path is not None:
             if len(fromlist_w) == 1 and space.eq_w(fromlist_w[0],
-                                                   space.wrap('*')):
-                w_all = try_getattr(space, w_mod, space.wrap('__all__'))
+                                                   space.wrap(u'*')):
+                w_all = try_getattr(space, w_mod, space.wrap(u'__all__'))
                 if w_all is not None:
                     fromlist_w = space.fixedview(w_all)
             for w_name in fromlist_w:
@@ -344,8 +342,8 @@ def _absolute_import(space, modulename, baselevel, fromlist_w, tentative):
     w = space.wrap
 
     if '/' in modulename or '\\' in modulename:
-        raise OperationError(space.w_ImportError, space.wrap(
-            "Import by filename is not supported."))
+        raise OperationError(space.w_ImportError,
+                             w(u"Import by filename is not supported."))
 
     w_mod = None
     parts = modulename.split('.')
@@ -365,7 +363,7 @@ def _absolute_import(space, modulename, baselevel, fromlist_w, tentative):
             first = w_mod
             tentative = 0
         prefix.append(part)
-        w_path = try_getattr(space, w_mod, w('__path__'))
+        w_path = try_getattr(space, w_mod, w(u'__path__'))
         level += 1
 
     if fromlist_w is not None:
@@ -449,8 +447,8 @@ class W_NullImporter(W_Root):
     def _descr_init(self, space, w_path, win32):
         path = space.unicode0_w(w_path) if win32 else space.fsencode_w(w_path)
         if not path:
-            raise OperationError(space.w_ImportError, space.wrap(
-                "empty pathname"))
+            raise OperationError(space.w_ImportError,
+                                 space.wrap(u"empty pathname"))
 
         # Directory should not exist
         try:
@@ -459,8 +457,8 @@ class W_NullImporter(W_Root):
             pass
         else:
             if stat.S_ISDIR(st.st_mode):
-                raise OperationError(space.w_ImportError, space.wrap(
-                    "existing directory"))
+                raise OperationError(space.w_ImportError,
+                                     space.wrap(u"existing directory"))
 
     def find_module_w(self, space, __args__):
         return space.wrap(None)
@@ -560,10 +558,10 @@ def find_module(space, modulename, w_modulename, partname, w_path,
 def _prepare_module(space, w_mod, filename, pkgdir):
     w = space.wrap
     space.sys.setmodule(w_mod)
-    space.setattr(w_mod, w('__file__'), space.wrap(filename))
-    space.setattr(w_mod, w('__doc__'), space.w_None)
+    space.setattr(w_mod, w(u'__file__'), w(filename))
+    space.setattr(w_mod, w(u'__doc__'), space.w_None)
     if pkgdir is not None:
-        space.setattr(w_mod, w('__path__'), space.newlist([w(pkgdir)]))
+        space.setattr(w_mod, w(u'__path__'), space.newlist([w(pkgdir)]))
 
 def add_module(space, w_name):
     w_mod = check_sys_modules(space, w_name)
@@ -626,7 +624,7 @@ def load_module(space, w_modulename, find_info, reuse=False):
                 return w_mod
             elif find_info.modtype == PKG_DIRECTORY:
                 w_path = space.newlist([space.wrap(find_info.filename)])
-                space.setattr(w_mod, space.wrap('__path__'), w_path)
+                space.setattr(w_mod, space.wrap(u'__path__'), w_path)
                 find_info = find_module(space, "__init__", None, "__init__",
                                         w_path, use_loader=False)
                 if find_info is None:
@@ -670,7 +668,7 @@ def load_part(space, w_path, prefix, partname, w_parent, tentative):
                         raise
                     raise OperationError(space.w_ImportError, w_modulename)
                 if w_parent is not None:
-                    space.setattr(w_parent, space.wrap(partname), w_mod)
+                    space.setattr(w_parent, w(partname), w_mod)
                 return w_mod
         finally:
             if find_info:
@@ -691,9 +689,9 @@ def reload(space, w_module):
     if not space.is_w(space.type(w_module), space.type(space.sys)):
         raise OperationError(
             space.w_TypeError,
-            space.wrap("reload() argument must be module"))
+            space.wrap(u"reload() argument must be module"))
 
-    w_modulename = space.getattr(w_module, space.wrap("__name__"))
+    w_modulename = space.getattr(w_module, space.wrap(u"__name__"))
     modulename = space.str0_w(w_modulename)
     if not space.is_w(check_sys_modules(space, w_modulename), w_module):
         raise oefmt(space.w_ImportError,
@@ -717,7 +715,7 @@ def reload(space, w_module):
                 raise oefmt(space.w_ImportError,
                             "reload(): parent %s not in sys.modules",
                             parent_name)
-            w_path = space.getattr(w_parent, space.wrap("__path__"))
+            w_path = space.getattr(w_parent, space.wrap(u"__path__"))
         else:
             w_path = None
 
@@ -796,7 +794,7 @@ class ImportRLock:
                 return
             space = self.space
             raise OperationError(space.w_RuntimeError,
-                                 space.wrap("not holding the import lock"))
+                                 space.wrap(u"not holding the import lock"))
         assert self.lockcounter > 0
         self.lockcounter -= 1
         if self.lockcounter == 0:
@@ -869,17 +867,19 @@ def parse_source_module(space, pathname, source):
 
 def exec_code_module(space, w_mod, code_w, pathname, cpathname,
                      write_paths=True):
-    w_dict = space.getattr(w_mod, space.wrap('__dict__'))
+    w_dict = space.getattr(w_mod, space.wrap(u'__dict__'))
     space.call_method(w_dict, 'setdefault',
-                      space.wrap('__builtins__'),
+                      space.wrap(u'__builtins__'),
                       space.wrap(space.builtin))
     if write_paths:
+        # TODOs
         if pathname is not None:
             w_pathname = get_sourcefile(space, pathname)
         else:
             w_pathname = space.wrap(code_w.co_filename)
-        space.setitem(w_dict, space.wrap("__file__"), w_pathname)
-        space.setitem(w_dict, space.wrap("__cached__"), space.wrap(cpathname))
+        space.setitem(w_dict, space.wrap(u"__file__"), w_pathname)
+        space.setitem(w_dict, space.wrap(u"__cached__"),
+                      space.wrap(cpathname))
     code_w.exec_code(space, w_dict, w_dict)
 
 def rightmost_sep(filename):

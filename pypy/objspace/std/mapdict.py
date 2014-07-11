@@ -1,6 +1,6 @@
 import weakref
 
-from rpython.rlib import jit, objectmodel, debug, rerased
+from rpython.rlib import jit, objectmodel, debug, rerased, rstring
 from rpython.rlib.rarithmetic import intmask, r_uint
 
 from pypy.interpreter.baseobjspace import W_Root
@@ -332,7 +332,8 @@ class PlainAttribute(AbstractAttribute):
         return new_obj
 
     def __repr__(self):
-        return "<PlainAttribute %s %s %r>" % (self.selector, self.storageindex, self.back)
+        return "<PlainAttribute %s %s %r>" % (self.selector,
+                                              self.storageindex, self.back)
 
 def _become(w_obj, new_obj):
     # this is like the _become method, really, but we cannot use that due to
