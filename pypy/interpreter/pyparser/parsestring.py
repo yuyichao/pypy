@@ -1,7 +1,7 @@
 # coding: utf-8
 from pypy.interpreter.error import OperationError, oefmt
 from pypy.interpreter import unicodehelper
-from rpython.rlib.rstring import StringBuilder
+from rpython.rlib.rstring import StringBuilder, check_ascii
 
 
 def parsestr(space, encoding, s):
@@ -234,4 +234,6 @@ def decode_utf8(space, s, ps, end, encoding):
     return v, ps
 
 def raise_app_valueerror(space, msg):
+    if isinstance(msg, str):
+        check_ascii(msg)
     raise OperationError(space.w_ValueError, space.wrap(msg))

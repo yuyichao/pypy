@@ -475,6 +475,12 @@ class __extend__(pairtype(SomeString, SomeObject),
                  pairtype(SomeUnicodeString, SomeObject)):
 
     def mod((s_string, args)):
+        if isinstance(args, SomeFloat):
+            return s_string.tobasestring()
+        if isinstance(args, (SomeString, SomeUnicodeString)):
+            no_nul = s_string.no_nul and args.no_nul
+            str_type = min(s_string.str_type, args.str_type)
+            return s_string.__class__(no_nul=no_nul, str_type=str_type)
         return s_string.__class__()
 
 class __extend__(pairtype(SomeFloat, SomeFloat)):

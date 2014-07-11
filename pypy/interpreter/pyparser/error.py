@@ -1,3 +1,4 @@
+from rpython.rlib.rstring import check_ascii
 
 class SyntaxError(Exception):
     """Base class for exceptions raised by the parser."""
@@ -20,6 +21,12 @@ class SyntaxError(Exception):
                                                  'replace')[0])
         if self.filename is not None:
             w_filename = space.fsdecode(space.wrapbytes(self.filename))
+        if isinstance(self.lineno, str):
+            check_ascii(self.lineno)
+        if isinstance(self.offset, str):
+            check_ascii(self.offset)
+        if isinstance(self.lastlineno, str):
+            check_ascii(self.lastlineno)
         return space.newtuple([space.wrap(self.msg),
                                space.newtuple([w_filename,
                                                space.wrap(self.lineno),
