@@ -14,7 +14,7 @@ from rpython.rlib.jit import (promote, elidable_promote, we_are_jitted,
      promote_string, elidable, dont_look_inside, unroll_safe)
 from rpython.rlib.objectmodel import current_object_addr_as_int, compute_hash
 from rpython.rlib.rarithmetic import intmask, r_uint
-from rpython.rlib.rstring import assert_ascii, assert_utf8, check_utf8
+from rpython.rlib.rstring import assert_utf8, check_utf8
 
 
 class TypeCell(W_Root):
@@ -590,7 +590,6 @@ def _create_new_type(space, w_typetype, w_name, w_bases, w_dict):
         raise OperationError(space.w_TypeError,
                              space.wrap(u"Invalid type name"))
     assert isinstance(name, str)
-    check_utf8(name)
     dict_w = {}
     dictkeys_w = space.listview(w_dict)
     for w_key in dictkeys_w:

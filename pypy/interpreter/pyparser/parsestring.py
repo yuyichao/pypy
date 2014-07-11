@@ -38,19 +38,19 @@ def parsestr(space, encoding, s):
         quote = s[ps]
         rawmode = True
     if quote != "'" and quote != '"':
-        raise_app_valueerror(space,
-                             'Internal error: parser passed unquoted literal')
+        raise_app_valueerror(space, (u'Internal error: parser passed '
+                                     'unquoted literal'))
     ps += 1
     q = len(s) - 1
     if s[q] != quote:
-        raise_app_valueerror(space, 'Internal error: parser passed unmatched '
-                                    'quotes in literal')
+        raise_app_valueerror(space, (u'Internal error: parser passed '
+                                     'unmatched quotes in literal'))
     if q-ps >= 4 and s[ps] == quote and s[ps+1] == quote:
         # triple quotes
         ps += 2
         if s[q-1] != quote or s[q-2] != quote:
-            raise_app_valueerror(space, 'Internal error: parser passed '
-                                        'unmatched triple quotes in literal')
+            raise_app_valueerror(space, (u'Internal error: parser passed '
+                                         'unmatched triple quotes in literal'))
         q -= 2
 
     if unicode_literal and not rawmode: # XXX Py_UnicodeFlag is ignored for now
@@ -145,7 +145,7 @@ def PyString_DecodeEscape(space, s, errors, recode_encoding):
 
         ps += 1
         if ps == end:
-            raise_app_valueerror(space, 'Trailing \\ in string')
+            raise_app_valueerror(space, u'Trailing \\ in string')
         prevps = ps
         ch = s[ps]
         ps += 1
@@ -192,7 +192,7 @@ def PyString_DecodeEscape(space, s, errors, recode_encoding):
             else:
                 if errors == 'strict':
                     raise_app_valueerror(
-                        space, "invalid \\x escape at position %d" % (ps - 2))
+                        space, u"invalid \\x escape at position %d" % (ps - 2))
                 elif errors == 'replace':
                     builder.append('?')
                 elif errors == 'ignore':
@@ -234,6 +234,5 @@ def decode_utf8(space, s, ps, end, encoding):
     return v, ps
 
 def raise_app_valueerror(space, msg):
-    if isinstance(msg, str):
-        check_ascii(msg)
+    assert isinstance(msg, unicode)
     raise OperationError(space.w_ValueError, space.wrap(msg))

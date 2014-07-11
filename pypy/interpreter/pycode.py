@@ -401,20 +401,6 @@ class PyCode(eval.Code):
         mod      = space.interp_w(MixedModule, w_mod)
         new_inst = mod.get('code_new')
         w        = space.wrap
-        if isinstance(self.co_argcount, str):
-            rstring.check_ascii(self.co_argcount)
-        if isinstance(self.co_kwonlyargcount, str):
-            rstring.check_ascii(self.co_kwonlyargcount)
-        if isinstance(self.co_nlocals, str):
-            rstring.check_ascii(self.co_nlocals)
-        if isinstance(self.co_stacksize, str):
-            rstring.check_ascii(self.co_stacksize)
-        if isinstance(self.co_flags, str):
-            rstring.check_ascii(self.co_flags)
-        if isinstance(self.co_firstlineno, str):
-            rstring.check_ascii(self.co_firstlineno)
-        if isinstance(self.magic, str):
-            rstring.check_ascii(self.magic)
         tup      = [
             w(self.co_argcount),
             w(self.co_kwonlyargcount),

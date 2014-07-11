@@ -235,7 +235,7 @@ def wrap_trampoline_in_gateway(func, methname, multimethod):
     return gateway.interp2app(func, app_name=methname)
 
 def slicemultimethod(space, multimethod, typedef, result, local=False):
-    """NOT_RPYTHON"""    
+    """NOT_RPYTHON"""
     for i in range(len(multimethod.specialnames)):
         methname = multimethod.specialnames[i]
         if methname in result:

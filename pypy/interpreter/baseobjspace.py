@@ -790,6 +790,7 @@ class ObjSpace(object):
             return self.interned_strings[s]
         except KeyError:
             pass
+        rstring.check_ascii(s)
         w_s = self.interned_strings[s] = self.wrap(s)
         return w_s
 

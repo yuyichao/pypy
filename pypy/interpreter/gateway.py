@@ -620,8 +620,7 @@ class BuiltinCode(Code):
         w_mod = space.getbuiltinmodule('_pickle_support')
         mod = space.interp_w(MixedModule, w_mod)
         builtin_code = mod.get('builtin_code')
-        if isinstance(self.identifier, str):
-            check_ascii(self.identifier)
+        check_ascii(self.identifier)
         return space.newtuple([builtin_code,
                                space.newtuple([space.wrap(self.identifier)])])
 

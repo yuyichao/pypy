@@ -90,12 +90,15 @@ class MixedModule(Module):
         return w_value
 
     def _load_lazily(self, space, name):
-        w_name = space.new_interned_str(name)
+        for n in self.loaders:
+            rstring.check_ascii(n)
         try:
             loader = self.loaders[name]
         except KeyError:
             return None
         else:
+            name = rstring.assert_ascii(name)
+            w_name = space.new_interned_str(name)
             w_value = loader(space)
             # the idea of the following code is that all functions that are
             # directly in a mixed-module are "builtin", e.g. they get a
@@ -144,8 +147,10 @@ class MixedModule(Module):
             if cls.submodule_name is not None:
                 appname += '.%s' % (cls.submodule_name,)
             for name, spec in cls.interpleveldefs.items():
+                rstring.check_ascii(name)
                 loaders[name] = getinterpevalloader(pkgroot, spec)
             for name, spec in cls.appleveldefs.items():
+                rstring.check_ascii(name)
                 loaders[name] = getappfileloader(pkgroot, appname, spec)
             assert '__file__' not in loaders
             if cls.expose__file__attribute:

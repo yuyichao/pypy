@@ -7,7 +7,7 @@ from pypy.interpreter.pyparser.pytokenize import tabsize, alttabsize, whiteSpace
 from pypy.interpreter.astcompiler import consts
 
 from rpython.rlib.rstring import (assert_ascii, check_utf8, assert_utf8,
-                                  is_utf8_str, is_ascii_str)
+                                  is_ascii_str)
 
 NAMECHARS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_'
 NUMCHARS = '0123456789'
