@@ -2,6 +2,7 @@
 from rpython.annotator.policy import AnnotatorPolicy
 from rpython.flowspace.model import Constant
 from rpython.annotator import specialize
+from rpython.rlib.rstring import assert_ascii
 
 
 
@@ -40,7 +41,7 @@ class PyPyAnnotatorPolicy(AnnotatorPolicy):
 
                     def fold():
                         if typ is str and isidentifier(x):
-                            return space.new_interned_str(x)
+                            return space.new_interned_str(assert_ascii(x))
                         else:
                             return space.wrap(x)
                     builder = specialize.make_constgraphbuilder(2, factory=fold,

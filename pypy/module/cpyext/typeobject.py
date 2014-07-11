@@ -2,7 +2,7 @@ import os
 
 from rpython.rlib import jit
 from rpython.rlib.objectmodel import specialize
-from rpython.rlib.rstring import rsplit
+from rpython.rlib.rstring import rsplit, assert_utf8, is_utf8_str
 from rpython.rtyper.annlowlevel import llhelper
 from rpython.rtyper.lltypesystem import rffi, lltype
 
@@ -292,9 +292,13 @@ class W_PyCTypeObject(W_TypeObject):
         convert_member_defs(space, dict_w, pto.c_tp_members, self)
 
         name = rffi.charp2str(pto.c_tp_name)
+        if not is_utf8_str(name):
+            raise OperationError(space.w_TypeError,
+                                 space.wrap(u"Invalid type name"))
+        name = assert_utf8(name)
 
         W_TypeObject.__init__(self, space, name,
-            bases_w or [space.w_object], dict_w)
+                              bases_w or [space.w_object], dict_w)
         if not space.is_true(space.issubtype(self, space.w_type)):
             self.flag_cpytype = True
         self.flag_heaptype = False
@@ -651,4 +655,3 @@ def PyType_Modified(space, w_obj):
         return
     if w_obj.is_cpytype():
         w_obj.mutated(None)
-

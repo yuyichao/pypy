@@ -1,7 +1,7 @@
 from pypy.interpreter import gateway
 from rpython.rlib.objectmodel import we_are_translated
 from rpython.rlib.unroll import unrolling_iterable
-from rpython.rlib.rstring import assert_ascii
+from rpython.rlib.rstring import assert_ascii, check_utf8, assert_utf8
 
 
 app = gateway.applevel("""

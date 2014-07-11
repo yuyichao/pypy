@@ -258,5 +258,5 @@ Return the string itself or the previously interned string object with the
 same value."""
     if space.is_w(space.type(w_str), space.w_unicode):
         return space.new_interned_w_str(w_str)
-    raise OperationError(space.w_TypeError, space.wrap("intern() argument must be string."))
-
+    raise OperationError(space.w_TypeError,
+                         space.wrap(u"intern() argument must be string."))

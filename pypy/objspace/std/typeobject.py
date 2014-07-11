@@ -14,6 +14,7 @@ from rpython.rlib.jit import (promote, elidable_promote, we_are_jitted,
      promote_string, elidable, dont_look_inside, unroll_safe)
 from rpython.rlib.objectmodel import current_object_addr_as_int, compute_hash
 from rpython.rlib.rarithmetic import intmask, r_uint
+from rpython.rlib.rstring import assert_ascii, assert_utf8, check_utf8
 
 
 class TypeCell(W_Root):
@@ -89,8 +90,8 @@ class W_TypeObject(W_Object):
     w_new_function = None
 
     @dont_look_inside
-    def __init__(w_self, space, name, bases_w, dict_w,
-                 overridetypedef=None):
+    def __init__(w_self, space, name, bases_w, dict_w, overridetypedef=None):
+        check_utf8(name)
         w_self.space = space
         w_self.name = name
         w_self.bases_w = bases_w
@@ -266,7 +267,7 @@ class W_TypeObject(W_Object):
             raise oefmt(space.w_TypeError,
                         "can't set attributes on type object '%N'", w_self)
         if name == "__del__" and name not in w_self.dict_w:
-            msg = ("a __del__ method added to an existing type will not be "
+            msg = (u"a __del__ method added to an existing type will not be "
                    "called")
             space.warn(space.wrap(msg), space.w_RuntimeWarning)
         if space.config.objspace.std.withtypeversion:
@@ -476,20 +477,22 @@ class W_TypeObject(W_Object):
         if self.is_heaptype():
             return self.getdictvalue(space, '__module__')
         else:
+            check_utf8(self.name)
             dot = self.name.find('.')
             if dot >= 0:
-                mod = self.name[:dot]
+                mod = assert_utf8(self.name[:dot])
             else:
                 mod = "builtins"
             return space.wrap(mod)
 
     def getname(self, space):
+        check_utf8(self.name)
         if self.is_heaptype():
             result = self.name
         else:
             dot = self.name.find('.')
             if dot >= 0:
-                result = self.name[dot+1:]
+                result = assert_utf8(self.name[dot + 1:])
             else:
                 result = self.name
         return result.decode('utf-8')
@@ -522,7 +525,7 @@ class W_TypeObject(W_Object):
     def get_subclasses(w_self):
         space = w_self.space
         if not space.config.translation.rweakref:
-            msg = ("this feature requires weakrefs, "
+            msg = (u"this feature requires weakrefs, "
                    "which are not available in this build of PyPy")
             raise OperationError(space.w_RuntimeError,
                                  space.wrap(msg))
@@ -563,19 +566,31 @@ def _create_new_type(space, w_typetype, w_name, w_bases, w_dict):
     # this is in its own function because we want the special case 'type(x)'
     # above to be seen by the jit.
     if w_bases is None or w_dict is None:
-        raise OperationError(space.w_TypeError, space.wrap("type() takes 1 or 3 arguments"))
+        raise OperationError(space.w_TypeError,
+                             space.wrap(u"type() takes 1 or 3 arguments"))
 
     bases_w = space.fixedview(w_bases)
 
     w_winner = _calculate_metaclass(space, w_typetype, bases_w)
     if not space.is_w(w_winner, w_typetype):
-        newfunc = space.getattr(w_winner, space.wrap('__new__'))
-        if not space.is_w(newfunc, space.getattr(space.w_type, space.wrap('__new__'))):
+        newfunc = space.getattr(w_winner, space.wrap(u'__new__'))
+        if not space.is_w(newfunc, space.getattr(space.w_type,
+                                                 space.wrap(u'__new__'))):
             return space.call_function(newfunc, w_winner, w_name, w_bases, w_dict)
         w_typetype = w_winner
 
-    name = space.str_w(w_name)
+    if not space.isinstance_w(w_name, space.w_unicode):
+        raise OperationError(space.w_TypeError,
+                             space.wrap(u"type() argument 1 must be str, "
+                                        "not bytes"))
+
+    try:
+        name = space.unicode_w(w_name).encode('utf-8')
+    except UnicodeEncodeError:
+        raise OperationError(space.w_TypeError,
+                             space.wrap(u"Invalid type name"))
     assert isinstance(name, str)
+    check_utf8(name)
     dict_w = {}
     dictkeys_w = space.listview(w_dict)
     for w_key in dictkeys_w:
@@ -597,7 +612,7 @@ def _calculate_metaclass(space, w_metaclass, bases_w):
         if space.is_true(space.issubtype(w_typ, w_winner)):
             w_winner = w_typ
             continue
-        msg = ("metaclass conflict: the metaclass of a derived class must be "
+        msg = (u"metaclass conflict: the metaclass of a derived class must be "
                "a (non-strict) subclass of the metaclasses of all its bases")
         raise OperationError(space.w_TypeError, space.wrap(msg))
     return w_winner
@@ -612,7 +627,7 @@ def _precheck_for_new(space, w_type):
 def _check(space, w_type, w_msg=None):
     if not isinstance(w_type, W_TypeObject):
         if w_msg is None:
-            w_msg = space.wrap("descriptor is for 'type'")
+            w_msg = space.wrap(u"descriptor is for 'type'")
         raise OperationError(space.w_TypeError, w_msg)
     return w_type
 
@@ -625,7 +640,13 @@ def descr_set__name__(space, w_type, w_value):
     w_type = _check(space, w_type)
     if not w_type.is_heaptype():
         raise oefmt(space.w_TypeError, "can't set %N.__name__", w_type)
-    name = space.str_w(w_value)
+    try:
+        name = space.unicode_w(w_value).encode('utf-8')
+    except UnicodeEncodeError:
+        raise OperationError(space.w_TypeError,
+                             space.wrap(u"Invalid type name"))
+    # This is the same behavior with CPython3, which is funny because
+    # the constructor does accept null bytes. May be a bug?
     if '\x00' in name:
         raise oefmt(space.w_ValueError, "__name__ must not contain null bytes")
     w_type.name = name
@@ -636,7 +657,7 @@ def descr_get__mro__(space, w_type):
 
 def descr_mro(space, w_type):
     """Return a type's method resolution order."""
-    w_type = _check(space, w_type, space.wrap("expected type"))
+    w_type = _check(space, w_type, space.wrap(u"expected type"))
     return space.newlist(w_type.compute_default_mro())
 
 def descr_get__bases__(space, w_type):
@@ -669,7 +690,7 @@ def descr_set__bases__(space, w_type, w_value):
         if isinstance(w_newbase, W_TypeObject):
             if w_type in w_newbase.compute_default_mro():
                 raise OperationError(space.w_TypeError,
-                                     space.wrap("a __bases__ item causes"
+                                     space.wrap(u"a __bases__ item causes"
                                                 " an inheritance cycle"))
 
     w_oldbestbase = check_and_find_best_base(space, w_type.bases_w)
@@ -719,7 +740,7 @@ def descr__base(space, w_type):
 
 def descr__doc(space, w_type):
     if space.is_w(w_type, space.w_type):
-        return space.wrap("""type(object) -> the object's type
+        return space.wrap(u"""type(object) -> the object's type
 type(name, bases, dict) -> a new type""")
     w_type = _check(space, w_type)
     if not w_type.is_heaptype():
@@ -761,7 +782,7 @@ def descr_get___abstractmethods__(space, w_type):
         if w_result is not None:
             return w_result
     raise OperationError(space.w_AttributeError,
-                         space.wrap("__abstractmethods__"))
+                         space.wrap(u"__abstractmethods__"))
 
 def descr_set___abstractmethods__(space, w_type, w_new):
     w_type = _check(space, w_type)
@@ -772,7 +793,7 @@ def descr_del___abstractmethods__(space, w_type):
     w_type = _check(space, w_type)
     if not w_type.deldictvalue(space, "__abstractmethods__"):
         raise OperationError(space.w_AttributeError,
-                             space.wrap("__abstractmethods__"))
+                             space.wrap(u"__abstractmethods__"))
     w_type.set_abstract(False)
 
 def descr___subclasses__(space, w_type):
@@ -877,7 +898,7 @@ def check_and_find_best_base(space, bases_w):
     w_bestbase = find_best_base(space, bases_w)
     if w_bestbase is None:
         raise OperationError(space.w_TypeError,
-                             space.wrap("a new-style class can't have "
+                             space.wrap(u"a new-style class can't have "
                                         "only classic bases"))
     if not w_bestbase.instancetypedef.acceptable_as_base_class:
         raise oefmt(space.w_TypeError,
@@ -890,8 +911,8 @@ def check_and_find_best_base(space, bases_w):
             w_layout = w_base.w_same_layout_as or w_base
             if not issublayout(w_bestlayout, w_layout):
                 raise OperationError(space.w_TypeError,
-                                     space.wrap("instance layout conflicts in "
-                                                "multiple inheritance"))
+                                     space.wrap(u"instance layout conflicts "
+                                                "in multiple inheritance"))
     return w_bestbase
 
 def copy_flags_from_bases(w_self, w_bestbase):
@@ -916,23 +937,31 @@ def create_all_slots(w_self, hasoldstylebase):
         wantdict = False
         wantweakref = False
         w_slots = dict_w['__slots__']
-        if (space.isinstance_w(w_slots, space.w_str) or
-            space.isinstance_w(w_slots, space.w_unicode)):
+        if space.isinstance_w(w_slots, space.w_str):
+            raise OperationError(space.w_TypeError,
+                                 space.wrap(u"__slots__ items must be "
+                                            "strings, not 'int'"))
+        elif space.isinstance_w(w_slots, space.w_unicode):
             slot_names_w = [w_slots]
         else:
             slot_names_w = space.unpackiterable(w_slots)
         for w_slot_name in slot_names_w:
-            slot_name = space.str_w(w_slot_name)
-            if slot_name == '__dict__':
+            if not space.isinstance_w(w_slot_name, space.w_unicode):
+                raise OperationError(
+                    space.w_TypeError,
+                    space.wrap(u"__slots__ items must be strings, not '%s'" %
+                               space.type(w_slot_name).name.decode('utf-8')))
+            slot_name = space.unicode_w(w_slot_name)
+            if slot_name == u'__dict__':
                 if wantdict or w_self.hasdict:
                     raise OperationError(space.w_TypeError,
-                            space.wrap("__dict__ slot disallowed: "
+                            space.wrap(u"__dict__ slot disallowed: "
                                        "we already got one"))
                 wantdict = True
-            elif slot_name == '__weakref__':
+            elif slot_name == u'__weakref__':
                 if wantweakref or w_self.weakrefable:
                     raise OperationError(space.w_TypeError,
-                            space.wrap("__weakref__ slot disallowed: "
+                            space.wrap(u"__weakref__ slot disallowed: "
                                        "we already got one"))
                 wantweakref = True
             else:
@@ -946,15 +975,17 @@ def create_all_slots(w_self, hasoldstylebase):
         w_self.needsdel = True
 
 def create_slot(w_self, slot_name):
+    assert isinstance(slot_name, unicode)
     space = w_self.space
     if not valid_slot_name(slot_name):
         raise OperationError(space.w_TypeError,
-                             space.wrap('__slots__ must be identifiers'))
+                             space.wrap(u'__slots__ must be identifiers'))
     # create member
-    slot_name = mangle(slot_name, w_self.name)
+    check_utf8(w_self.name)
+    slot_name = assert_utf8(mangle(slot_name.encode('utf-8'), w_self.name))
     if slot_name not in w_self.dict_w:
         # Force interning of slot names.
-        slot_name = space.str_w(space.new_interned_str(slot_name))
+        space.new_interned_str_utf8(slot_name)
         # in cpython it is ignored less, but we probably don't care
         member = Member(w_self.nslots, slot_name, w_self)
         w_self.dict_w[slot_name] = space.wrap(member)
@@ -973,12 +1004,8 @@ def create_weakref_slot(w_self):
         w_self.weakrefable = True
 
 def valid_slot_name(slot_name):
-    if len(slot_name) == 0 or slot_name[0].isdigit():
-        return False
-    for c in slot_name:
-        if not c.isalnum() and c != '_':
-            return False
-    return True
+    from pypy.objspace.std.unicodeobject import _isidentifier
+    return _isidentifier(slot_name)
 
 def setup_user_defined_type(w_self):
     if len(w_self.bases_w) == 0:
@@ -1028,7 +1055,7 @@ def ensure_module_attr(w_self):
         caller = space.getexecutioncontext().gettopframe_nohidden()
         if caller is not None:
             w_globals = caller.w_globals
-            w_name = space.finditem(w_globals, space.wrap('__name__'))
+            w_name = space.finditem(w_globals, space.wrap(u'__name__'))
             if w_name is not None:
                 w_self.dict_w['__module__'] = w_name
 
@@ -1058,7 +1085,7 @@ def validate_custom_mro(space, mro_w):
     for w_class in mro_w:
         if not space.abstract_isclass_w(w_class):
             raise OperationError(space.w_TypeError,
-                                 space.wrap("mro() returned a non-class"))
+                                 space.wrap(u"mro() returned a non-class"))
     return mro_w
 
 def is_mro_purely_of_types(mro_w):
@@ -1098,7 +1125,7 @@ def call__Type(space, w_type, __args__):
         w_result = space.get_and_call_args(w_descr, w_newobject, __args__)
         if not space.is_w(w_result, space.w_None):
             raise OperationError(space.w_TypeError,
-                                 space.wrap("__init__() should return None"))
+                                 space.wrap(u"__init__() should return None"))
     return w_newobject
 
 def _issubtype(w_sub, w_type):

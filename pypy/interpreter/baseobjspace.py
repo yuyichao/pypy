@@ -437,16 +437,14 @@ class ObjSpace(object):
         else:
             name = importname
 
-        if isinstance(name, str):
-            rstring.check_ascii(name)
+        rstring.check_ascii(name)
         mod = Module(self, self.wrap(name))
         mod.install()
 
         return name
 
     def getbuiltinmodule(self, name, force_init=False, reuse=True):
-        if isinstance(name, str):
-            rstring.check_ascii(name)
+        rstring.check_ascii(name)
         w_name = self.wrap(name)
         w_modules = self.sys.get('modules')
         if not force_init:
@@ -567,8 +565,7 @@ class ObjSpace(object):
         types_w = (self.get_builtin_types().items() +
                    exception_types_w.items())
         for name, w_type in types_w:
-            if isinstance(name, str):
-                rstring.check_ascii(name)
+            rstring.check_ascii(name)
             self.setitem(self.builtin.w_dict, self.wrap(name), w_type)
 
         # install mixed modules
@@ -745,8 +742,7 @@ class ObjSpace(object):
         return self.int_w(self.len(w_obj))
 
     def setitem_str(self, w_obj, key, w_value):
-        if isinstance(key, str):
-            rstring.check_ascii(key)
+        rstring.check_ascii(key)
         return self.setitem(w_obj, self.wrap(key), w_value)
 
     def finditem_str(self, w_obj, key):
@@ -795,6 +791,17 @@ class ObjSpace(object):
         except KeyError:
             pass
         w_s = self.interned_strings[s] = self.wrap(s)
+        return w_s
+
+    def new_interned_str_utf8(self, s):
+        if not we_are_translated():
+            assert type(s) is str
+        try:
+            return self.interned_strings[s]
+        except KeyError:
+            pass
+        rstring.check_utf8(s)
+        w_s = self.interned_strings[s] = self.wrap(s.decode('utf-8'))
         return w_s
 
     def descr_self_interp_w(self, RequiredClass, w_obj):

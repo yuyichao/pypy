@@ -9,6 +9,7 @@ from pypy.interpreter.gateway import (interp2app, BuiltinCode, unwrap_spec,
 from rpython.rlib.jit import promote
 from rpython.rlib.objectmodel import compute_identity_hash, specialize
 from rpython.tool.sourcetools import compile2, func_with_new_name
+from rpython.rlib.rstring import check_ascii, check_utf8
 
 
 class TypeDef(object):
@@ -341,7 +342,7 @@ def _builduserclswithfeature(config, supercls, *features):
 def check_new_dictionary(space, w_dict):
     if not space.isinstance_w(w_dict, space.w_dict):
         raise OperationError(space.w_TypeError,
-                space.wrap("setting dictionary to a non-dict"))
+                             space.wrap(u"setting dictionary to a non-dict"))
     from pypy.objspace.std import dictmultiobject
     assert isinstance(w_dict, dictmultiobject.W_DictMultiObject)
     return w_dict
@@ -407,7 +408,7 @@ def _make_descr_typecheck_wrapper(tag, func, extraargs, cls, use_closure):
 def unknown_objclass_getter(space):
     # NB. this is an AttributeError to make inspect.py happy
     raise OperationError(space.w_AttributeError,
-                         space.wrap("generic property has no __objclass__"))
+                         space.wrap(u"generic property has no __objclass__"))
 
 @specialize.arg(0)
 def make_objclass_getter(tag, func, cls):
@@ -482,7 +483,7 @@ class GetSetProperty(W_Root):
         fset = self.fset
         if fset is None:
             raise OperationError(space.w_AttributeError,
-                                 space.wrap("readonly attribute"))
+                                 space.wrap(u"readonly attribute"))
         try:
             fset(self, space, w_obj, w_value)
         except DescrMismatch:
@@ -498,7 +499,7 @@ class GetSetProperty(W_Root):
         fdel = self.fdel
         if fdel is None:
             raise OperationError(space.w_AttributeError,
-                                 space.wrap("cannot delete attribute"))
+                                 space.wrap(u"cannot delete attribute"))
         try:
             fdel(self, space, w_obj)
         except DescrMismatch:
@@ -514,6 +515,12 @@ def interp_attrproperty(name, cls, doc=None):
     "NOT_RPYTHON: initialization-time only"
     def fget(space, obj):
         return space.wrap(getattr(obj, name))
+    return GetSetProperty(fget, cls=cls, doc=doc)
+
+def interp_attrproperty_utf8(name, cls, doc=None):
+    "NOT_RPYTHON: initialization-time only"
+    def fget(space, obj):
+        return space.wrap(getattr(obj, name).decode('utf-8'))
     return GetSetProperty(fget, cls=cls, doc=doc)
 
 def interp_attrproperty_bytes(name, cls, doc=None):
@@ -556,6 +563,7 @@ class Member(W_Root):
     _immutable_ = True
 
     def __init__(self, index, name, w_cls):
+        check_utf8(name)
         self.index = index
         self.name = name
         self.w_cls = w_cls
@@ -575,8 +583,10 @@ class Member(W_Root):
             self.typecheck(space, w_obj)
             w_result = w_obj.getslotvalue(self.index)
             if w_result is None:
+                check_utf8(self.name)
+                # XXX better message
                 raise OperationError(space.w_AttributeError,
-                                     space.wrap(self.name)) # XXX better message
+                                     space.wrap(self.name.decode('utf-8')))
             return w_result
 
     def descr_member_set(self, space, w_obj, w_value):
@@ -591,15 +601,17 @@ class Member(W_Root):
         self.typecheck(space, w_obj)
         success = w_obj.delslotvalue(self.index)
         if not success:
+            check_utf8(self.name)
+            # XXX better message
             raise OperationError(space.w_AttributeError,
-                                 space.wrap(self.name)) # XXX better message
+                                 space.wrap(self.name.decode('utf-8')))
 
 Member.typedef = TypeDef(
     "member_descriptor",
     __get__ = interp2app(Member.descr_member_get),
     __set__ = interp2app(Member.descr_member_set),
     __delete__ = interp2app(Member.descr_member_del),
-    __name__ = interp_attrproperty('name', cls=Member),
+    __name__ = interp_attrproperty_utf8('name', cls=Member),
     __objclass__ = interp_attrproperty_w('w_cls', cls=Member),
     )
 Member.typedef.acceptable_as_base_class = False
@@ -659,7 +671,8 @@ descr_generic_ne = interp2app(generic_ne)
 
 # co_xxx interface emulation for built-in code objects
 def fget_co_varnames(space, code): # unwrapping through unwrap_spec
-    return space.newtuple([space.wrap(name) for name in code.getvarnames()])
+    return space.newtuple([space.wrap(name.decode('utf-8'))
+                           for name in code.getvarnames()])
 
 def fget_co_argcount(space, code): # unwrapping through unwrap_spec
     return space.wrap(code.signature().num_argnames())
