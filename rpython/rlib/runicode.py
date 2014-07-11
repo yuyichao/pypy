@@ -1,6 +1,7 @@
 import sys
 from rpython.rlib.objectmodel import specialize, we_are_translated
-from rpython.rlib.rstring import StringBuilder, UnicodeBuilder
+from rpython.rlib.rstring import (StringBuilder, UnicodeBuilder,
+                                  assert_ascii, assert_utf8)
 from rpython.rlib.rarithmetic import r_uint, intmask
 from rpython.rlib.unicodedata import unicodedb
 from rpython.rtyper.lltypesystem import lltype, rffi
@@ -1051,7 +1052,7 @@ def unicode_encode_latin_1(p, size, errors, errorhandler=None):
 
 def unicode_encode_ascii(p, size, errors, errorhandler=None):
     res = unicode_encode_ucs1_helper(p, size, errors, errorhandler, 128)
-    return res
+    return assert_ascii(res)
 
 # ____________________________________________________________
 # Charmap

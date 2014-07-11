@@ -6,14 +6,12 @@ from rpython.rlib import rstring
 
 
 def recode_to_utf8(space, bytes, encoding=None):
-    if encoding == 'utf-8':
-        return bytes
     if isinstance(encoding, str) or isinstance(encoding, unicode):
         rstring.check_ascii(encoding)
     w_text = space.call_method(space.wrapbytes(bytes), "decode",
                                space.wrap(encoding))
     w_recoded = space.call_method(w_text, "encode", space.wrap("utf-8"))
-    return space.bytes_w(w_recoded)
+    return rstring.assert_utf8(space.bytes_w(w_recoded))
 
 def _normalize_encoding(encoding):
     """returns normalized name for <encoding>
@@ -90,6 +88,13 @@ _targets = {
 'exec' : pygram.syms.file_input,
 }
 
+def check_source_utf8(src, info):
+    pos = rstring.find_invalid_utf8_str(src)
+    if pos >= 0:
+        raise error.SyntaxError("invalid byte %s in position %d" %
+                                (repr(src[pos]), pos), filename=info.filename)
+    return rstring.assert_utf8(src)
+
 class PythonParser(parser.Parser):
 
     def __init__(self, space, future_flags=future.futureFlags_3_2,
@@ -110,22 +115,25 @@ class PythonParser(parser.Parser):
             enc = 'utf-8'
 
         if compile_info.flags & consts.PyCF_IGNORE_COOKIE:
-            textsrc = bytessrc
+            textsrc = check_source_utf8(bytessrc, compile_info)
         elif bytessrc.startswith("\xEF\xBB\xBF"):
             bytessrc = bytessrc[3:]
             enc = 'utf-8'
             # If an encoding is explicitly given check that it is utf-8.
             decl_enc = _check_for_encoding(bytessrc)
             if decl_enc and decl_enc != "utf-8":
-                raise error.SyntaxError("UTF-8 BOM with %s coding cookie" % decl_enc,
-                                        filename=compile_info.filename)
-            textsrc = bytessrc
+                raise error.SyntaxError("UTF-8 BOM with %s coding cookie" %
+                                        decl_enc, filename=compile_info.filename)
+            textsrc = check_source_utf8(bytessrc, compile_info)
         else:
             enc = _normalize_encoding(_check_for_encoding(bytessrc))
             if enc is None:
                 enc = 'utf-8'
             try:
-                textsrc = recode_to_utf8(self.space, bytessrc, enc)
+                if enc == 'utf-8':
+                    textsrc = check_source_utf8(bytessrc, compile_info)
+                else:
+                    textsrc = recode_to_utf8(self.space, bytessrc, enc)
             except OperationError, e:
                 # if the codec is not found, LookupError is raised.  we
                 # check using 'is_w' not to mask potential IndexError or
@@ -140,6 +148,8 @@ class PythonParser(parser.Parser):
                     w_message = space.str(e.get_w_value(space))
                     raise error.SyntaxError(space.str_w(w_message))
                 raise
+
+        rstring.check_utf8(textsrc)
 
         flags = compile_info.flags
 

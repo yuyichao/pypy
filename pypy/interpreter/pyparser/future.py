@@ -1,4 +1,5 @@
 from pypy.tool import stdlib___future__ as future
+from rpython.rlib import rstring
 
 class FutureFlags(object):
 
@@ -42,6 +43,8 @@ class TokenIterator:
         index = self.index
         self.index = index + 1
         self.tok = self.tokens[index]
+        rstring.check_utf8(self.tok[1])
+        rstring.check_utf8(self.tok[4])
 
     def skip(self, n):
         if self.tok[0] == n:

@@ -719,7 +719,7 @@ def make_formatting_class():
             for c in s:
                 index = ord(c)
                 if ord("a") <= index <= ord("z"):
-                    c = chr(index - 32)
+                    c = rstring.assert_ascii(chr(index - 32))
                 buf.append(c)
             return self.empty.join(buf)
 

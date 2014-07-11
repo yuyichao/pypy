@@ -609,11 +609,11 @@ class Entry(ExtRegistryEntry):
         hop.exception_cannot_occur()
 
 
-def is_utf8_str(s):
+def find_invalid_utf8_str(s):
     from rpython.rlib.runicode import utf8_code_length
     size = len(s)
     if size == 0:
-        return True
+        return -1
     pos = 0
     while pos < size:
         ordch1 = ord(s[pos])
@@ -623,18 +623,18 @@ def is_utf8_str(s):
 
         n = utf8_code_length[ordch1]
         if pos + n > size:
-            return False
+            return pos
         if n == 2:
             ordch2 = ord(s[pos + 1])
             if (ordch2 >> 6) != 0x2:   # 0b10
-                return False
+                return pos
         elif n == 3:
             ordch2 = ord(s[pos + 1])
             ordch3 = ord(s[pos + 2])
             if (ordch2 >> 6 != 0x2 or ordch3 >> 6 != 0x2 or    # 0b10
                 (ordch1 == 0xe0 and ordch2 < 0xa0) or
                 (ordch1 == 0xed and ordch2 > 0x9f)):
-                return False
+                return pos
         elif n == 4:
             ordch2 = ord(s[pos + 1])
             ordch3 = ord(s[pos + 2])
@@ -642,12 +642,16 @@ def is_utf8_str(s):
             if (ordch2 >> 6 != 0x2 or ordch3 >> 6 != 0x2 or
                 ordch4 >> 6 != 0x2 or (ordch1 == 0xf0 and ordch2 < 0x90) or
                 (ordch1 == 0xf4 and ordch2 > 0x8f)):
-                return False
+                return pos
         else:
             # Shouldn't get here but whatever...
-            return False
+            return pos
         pos += n
-    return True
+    return -1
+
+
+def is_utf8_str(s):
+    return find_invalid_utf8_str(s) == -1
 
 
 def is_utf8_unicode(s):

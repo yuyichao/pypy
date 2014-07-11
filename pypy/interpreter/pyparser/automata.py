@@ -21,6 +21,7 @@ DEFAULT = "\00default" # XXX hack, the rtyper does not support dict of with str|
                        # anyway using dicts doesn't seem the best final way to store these char indexed tables
 # PYPY Modification : removed all automata functions (any, maybe,
 #                     newArcPair, etc.)
+from rpython.rlib.rstring import check_utf8
 
 class DFA:
     # ____________________________________________________________
@@ -31,6 +32,7 @@ class DFA:
 
     # ____________________________________________________________
     def recognize (self, inVec, pos = 0): # greedy = True
+        check_utf8(inVec)
         crntState = self.start
         lastAccept = False
         i = pos

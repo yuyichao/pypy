@@ -418,7 +418,12 @@ class __extend__(pairtype(SomeChar, SomeChar)):
 class __extend__(pairtype(SomeChar, SomeUnicodeCodePoint),
                  pairtype(SomeUnicodeCodePoint, SomeChar)):
     def union((uchr1, uchr2)):
-        return SomeUnicodeCodePoint()
+        if ((uchr1.str_type != ASCII_STR and isinstance(uchr1, SomeChar)) or
+            (uchr2.str_type != ASCII_STR and isinstance(uchr2, SomeChar))):
+            raise UnionError(uchr1, uchr2)
+        no_nul = uchr1.no_nul and uchr2.no_nul
+        str_type = min(uchr1.str_type, uchr2.str_type)
+        return SomeUnicodeCodePoint(no_nul=no_nul, str_type=str_type)
 
 class __extend__(pairtype(SomeUnicodeCodePoint, SomeUnicodeCodePoint)):
     def union((uchr1, uchr2)):

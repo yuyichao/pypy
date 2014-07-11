@@ -4265,6 +4265,28 @@ class TestAnnotateTestCase:
         assert isinstance(s, annmodel.SomeString)
         assert s.str_type == annmodel.UTF8_STR
 
+    def test_union_utf8(self):
+        def g(x):
+            return x.encode('utf-8')
+
+        def f(i, x, s):
+            from rpython.rlib import rstring
+            if i == 0:
+                return g(x)
+            elif i == 1:
+                return rstring.assert_utf8(s)
+            elif i == 2:
+                return ""
+            elif i == 3:
+                return rstring.assert_utf8(s) + 'abd'
+            else:
+                return rstring.assert_ascii(s)
+
+        a = self.RPythonAnnotator()
+        s = a.build_types(f, [int, unicode, str])
+        assert isinstance(s, annmodel.SomeString)
+        assert s.str_type == annmodel.UTF8_STR
+
 
 def g(n):
     return [0, 1, 2, n]

@@ -6,7 +6,8 @@ from pypy.interpreter.pyparser.pytokenize import tabsize, alttabsize, whiteSpace
     triple_quoted, endDFAs, single_quoted, pseudoDFA
 from pypy.interpreter.astcompiler import consts
 
-from rpython.rlib.rstring import assert_ascii
+from rpython.rlib.rstring import (assert_ascii, check_utf8, assert_utf8,
+                                  is_utf8_str, is_ascii_str)
 
 NAMECHARS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_'
 NUMCHARS = '0123456789'
@@ -47,11 +48,9 @@ def match_encoding_declaration(comment):
 
 
 def verify_identifier(token):
-    for c in token:
-        if ord(c) > 0x80:
-            break
-    else:
+    if is_ascii_str(token):
         return True
+    check_utf8(token)
     try:
         u = token.decode('utf-8')
     except UnicodeDecodeError:
@@ -105,6 +104,7 @@ def generate_tokens(lines, flags):
     lines.append("")
     strstart = (0, 0, "")
     for line in lines:
+        check_utf8(line)
         lnum = lnum + 1
         pos, max = 0, len(line)
 
@@ -117,8 +117,8 @@ def generate_tokens(lines, flags):
             endmatch = endDFA.recognize(line)
             if endmatch >= 0:
                 pos = end = endmatch
-                tok = (tokens.STRING, contstr + line[:end], strstart[0],
-                       strstart[1], line)
+                tok = (tokens.STRING, contstr + assert_utf8(line[:end]),
+                       strstart[0], strstart[1], line)
                 token_list.append(tok)
                 last_comment = ''
                 contstr, needcont = '', 0
@@ -167,7 +167,8 @@ def generate_tokens(lines, flags):
                     raise TabError(lnum, pos, line)
                 indents.append(column)
                 altindents.append(altcolumn)
-                token_list.append((tokens.INDENT, line[:pos], lnum, 0, line))
+                token_list.append((tokens.INDENT, assert_utf8(line[:pos]),
+                                   lnum, 0, line))
                 last_comment = ''
             else:
                 while column < indents[-1]:
@@ -205,7 +206,7 @@ def generate_tokens(lines, flags):
                                      lnum, start + 1, token_list)
 
                 pos = end
-                token, initial = line[start:end], line[start]
+                token, initial = assert_utf8(line[start:end]), line[start]
                 if (initial in numchars or \
                    (initial == '.' and token != '.' and token != '...')):
                     # ordinary number
@@ -224,13 +225,13 @@ def generate_tokens(lines, flags):
                     endmatch = endDFA.recognize(line, pos)
                     if endmatch >= 0:                     # all on one line
                         pos = endmatch
-                        token = line[start:pos]
+                        token = assert_utf8(line[start:pos])
                         tok = (tokens.STRING, token, lnum, start, line)
                         token_list.append(tok)
                         last_comment = ''
                     else:
                         strstart = (lnum, start, line)
-                        contstr = line[start:]
+                        contstr = assert_utf8(line[start:])
                         contline = line
                         break
                 elif initial in single_quoted or \
@@ -240,7 +241,7 @@ def generate_tokens(lines, flags):
                         strstart = (lnum, start, line)
                         endDFA = (endDFAs[initial] or endDFAs[token[1]] or
                                    endDFAs[token[2]])
-                        contstr, needcont = line[start:], 1
+                        contstr, needcont = assert_utf8(line[start:]), 1
                         contline = line
                         break
                     else:                                  # ordinary string
@@ -264,7 +265,8 @@ def generate_tokens(lines, flags):
                     elif initial in ')]}':
                         parenlev = parenlev - 1
                         if parenlev < 0:
-                            raise TokenError("unmatched '%s'" % initial, line,
+                            raise TokenError("unmatched '%s'" %
+                                             assert_ascii(initial), line,
                                              lnum, start + 1, token_list)
                     if token in python_opmap:
                         punct = python_opmap[token]
@@ -276,13 +278,19 @@ def generate_tokens(lines, flags):
                 start = whiteSpaceDFA.recognize(line, pos)
                 if start < 0:
                     start = pos
-                if start<max and line[start] in single_quoted:
+                if start < max and line[start] in single_quoted:
                     raise TokenError("EOL while scanning string literal",
-                             line, lnum, start+1, token_list)
-                tok = (tokens.ERRORTOKEN, line[pos], lnum, pos, line)
+                                     line, lnum, start + 1, token_list)
+                from rpython.rlib.runicode import utf8_code_length
+                char_len = utf8_code_length[ord(line[pos])]
+                if not char_len:
+                    raise TokenError("Invalid byte while scanning string literal",
+                                     line, lnum, start + 1, token_list)
+                tok = (tokens.ERRORTOKEN, assert_utf8(line[pos:pos + char_len]),
+                       lnum, pos, line)
                 token_list.append(tok)
                 last_comment = ''
-                pos = pos + 1
+                pos = pos + char_len
 
     lnum -= 1
     if not (flags & consts.PyCF_DONT_IMPLY_DEDENT):
@@ -295,4 +303,7 @@ def generate_tokens(lines, flags):
     token_list.append(tok)
 
     token_list.append((tokens.ENDMARKER, '', lnum, pos, line))
+    for tok in token_list:
+        check_utf8(tok[1])
+        check_utf8(tok[4])
     return token_list
