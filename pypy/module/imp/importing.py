@@ -128,21 +128,31 @@ def _get_dot_position(str, n):
         result = str.rfind('.', 0, result)
     return result
 
+def _convert_univode_attr(space, w_value, name):
+    if space.isinstance_w(w_value, space.w_unicode):
+        try:
+            u_value = space.unicode_w(w_value)
+            value = u_value.encode('utf-8')
+            u_value = rstring.assert_utf8(u_value)
+            if not '\x00' in value:
+                return rstring.assert_str0(value), rstring.assert_str0(u_value)
+        except UnicodeEncodeError:
+            pass
+    raise OperationError(space.w_ValueError,
+                         space.wrap(u"%s set to non-string" % name))
+
 def _get_relative_name(space, modulename, level, w_globals):
     w = space.wrap
     ctxt_w_package = space.finditem_str(w_globals, '__package__')
     ctxt_w_package = jit.promote(ctxt_w_package)
     level = jit.promote(level)
 
+    rstring.check_utf8(modulename)
+
     ctxt_package = None
     if ctxt_w_package is not None and ctxt_w_package is not space.w_None:
-        try:
-            ctxt_package = space.str0_w(ctxt_w_package)
-        except OperationError, e:
-            if not e.match(space, space.w_TypeError):
-                raise
-            raise OperationError(space.w_ValueError, space.wrap(
-                u"__package__ set to non-string"))
+        ctxt_package, ctxt_u_package = _convert_univode_attr(
+            space, ctxt_w_package, u'__package__')
 
     if ctxt_package is not None:
         # __package__ is set, so use it
@@ -152,9 +162,9 @@ def _get_relative_name(space, modulename, level, w_globals):
         dot_position = _get_dot_position(ctxt_package, level - 1)
         if dot_position < 0:
             if len(ctxt_package) == 0:
-                msg = "Attempted relative import in non-package"
+                msg = u"Attempted relative import in non-package"
             else:
-                msg = "Attempted relative import beyond toplevel package"
+                msg = u"Attempted relative import beyond toplevel package"
             raise OperationError(space.w_ValueError, w(msg))
 
         # Try to import parent package
@@ -164,15 +174,15 @@ def _get_relative_name(space, modulename, level, w_globals):
             if not e.match(space, space.w_ImportError):
                 raise
             if level > 0:
-                raise OperationError(space.w_SystemError, space.wrap(
-                    "Parent module '%s' not loaded, "
-                    "cannot perform relative import" % ctxt_package))
+                msg = (u"Parent module '%s' not loaded, "
+                       "cannot perform relative import" % ctxt_u_package)
+                raise OperationError(space.w_SystemError, w(msg))
             else:
-                msg = ("Parent module '%s' not found while handling absolute "
-                       "import" % ctxt_package)
-                space.warn(space.wrap(msg), space.w_RuntimeWarning)
+                msg = (u"Parent module '%s' not found while handling absolute "
+                       "import" % ctxt_u_package)
+                space.warn(w(msg), space.w_RuntimeWarning)
 
-        rel_modulename = ctxt_package[:dot_position]
+        rel_modulename = rstring.assert_utf8(ctxt_package[:dot_position])
         rel_level = rel_modulename.count('.') + 1
         if modulename:
             rel_modulename += '.' + modulename
@@ -184,11 +194,8 @@ def _get_relative_name(space, modulename, level, w_globals):
         ctxt_w_name = jit.promote(ctxt_w_name)
         ctxt_name = None
         if ctxt_w_name is not None:
-            try:
-                ctxt_name = space.str0_w(ctxt_w_name)
-            except OperationError, e:
-                if not e.match(space, space.w_TypeError):
-                    raise
+            ctxt_name, ctxt_u_name = _convert_univode_attr(
+                space, ctxt_w_name, u'__name__')
 
         if not ctxt_name:
             return None, 0
@@ -204,7 +211,7 @@ def _get_relative_name(space, modulename, level, w_globals):
             rel_modulename = ''
             rel_level = 0
         else:
-            rel_modulename = ctxt_name[:dot_position]
+            rel_modulename = rstring.assert_utf8(ctxt_name[:dot_position])
             rel_level = rel_modulename.count('.') + 1
 
         if ctxt_w_path is not None:
@@ -217,7 +224,7 @@ def _get_relative_name(space, modulename, level, w_globals):
                 space.setitem(w_globals, w(u"__package__"), space.w_None)
             else:
                 space.setitem(w_globals, w(u"__package__"),
-                              w(ctxt_name[:last_dot_position]))
+                              w(ctxt_name[:last_dot_position].decode('utf-8')))
 
         if modulename:
             if rel_modulename:
@@ -225,14 +232,18 @@ def _get_relative_name(space, modulename, level, w_globals):
             else:
                 rel_modulename = modulename
 
+    rstring.check_utf8(rel_modulename)
     return rel_modulename, rel_level
 
 
-@unwrap_spec(name='str0', level=int)
+@unwrap_spec(name='unicode0', level=int)
 def importhook(space, name, w_globals=None,
                w_locals=None, w_fromlist=None, level=-1):
-    modulename = name
     w = space.wrap
+    try:
+        modulename = name.encode('utf-8')
+    except UnicodeEncodeError:
+        raise OperationError(space.w_ValueError, w(u"Invalid module name"))
     if not modulename and level < 0:
         raise OperationError(space.w_ValueError, w(u"Empty module name"))
 
@@ -270,7 +281,9 @@ def importhook(space, name, w_globals=None,
 
     w_mod = absolute_import(space, modulename, 0, fromlist_w, tentative=0)
     if rel_modulename is not None:
-        space.setitem(space.sys.get('modules'), w(rel_modulename), space.w_None)
+        rstring.check_utf8(rel_modulename)
+        space.setitem(space.sys.get('modules'),
+                      w(rel_modulename.decode('utf-8')), space.w_None)
     return w_mod
 
 def absolute_import(space, modulename, baselevel, fromlist_w, tentative):
@@ -280,6 +293,7 @@ def absolute_import(space, modulename, baselevel, fromlist_w, tentative):
     # should be followed by the JIT and turned into not much code.  But
     # if the import lock is currently held by another thread, then we
     # have to wait, and so shouldn't use the fast path.
+    rstring.check_utf8(modulename)
     if not getimportlock(space).lock_held_by_someone_else():
         w_mod = absolute_import_try(space, modulename, baselevel, fromlist_w)
         if w_mod is not None and not space.is_w(w_mod, space.w_None):
@@ -317,7 +331,8 @@ def absolute_import_try(space, modulename, baselevel, fromlist_w):
             if last_dot < 0:
                 w_mod = check_sys_modules_w(space, modulename)
             else:
-                w_mod = check_sys_modules_w(space, modulename[:last_dot])
+                w_mod = check_sys_modules_w(
+                    space, rstring.assert_utf8(modulename[:last_dot]))
             if w_mod is None or space.is_w(w_mod, space.w_None):
                 return None
             if level == baselevel:
@@ -346,6 +361,7 @@ def _absolute_import(space, modulename, baselevel, fromlist_w, tentative):
                              w(u"Import by filename is not supported."))
 
     w_mod = None
+    rstring.check_utf8(modulename)
     parts = modulename.split('.')
     prefix = []
     w_path = None
@@ -354,6 +370,7 @@ def _absolute_import(space, modulename, baselevel, fromlist_w, tentative):
     level = 0
 
     for part in parts:
+        rstring.check_utf8(part)
         w_mod = load_part(space, w_path, prefix, part, w_mod,
                           tentative=tentative)
         if w_mod is None:
@@ -368,8 +385,8 @@ def _absolute_import(space, modulename, baselevel, fromlist_w, tentative):
 
     if fromlist_w is not None:
         if w_path is not None:
-            if len(fromlist_w) == 1 and space.eq_w(fromlist_w[0],w('*')):
-                w_all = try_getattr(space, w_mod, w('__all__'))
+            if len(fromlist_w) == 1 and space.eq_w(fromlist_w[0], w(u'*')):
+                w_all = try_getattr(space, w_mod, w(u'__all__'))
                 if w_all is not None:
                     fromlist_w = space.fixedview(w_all)
             for w_name in fromlist_w:
@@ -421,7 +438,8 @@ def find_in_path_hooks(space, w_modulename, w_pathitem):
     w_importer = _getimporter(space, w_pathitem)
     if w_importer is not None and space.is_true(w_importer):
         try:
-            w_loader = space.call_method(w_importer, "find_module", w_modulename)
+            w_loader = space.call_method(w_importer, "find_module",
+                                         w_modulename)
         except OperationError, e:
             if e.match(space, space.w_ImportError):
                 return None
@@ -473,6 +491,7 @@ W_NullImporter.typedef = TypeDef(
 class FindInfo:
     def __init__(self, modtype, filename, stream,
                  suffix="", filemode="", w_loader=None):
+        rstring.check_ascii(filemode)
         self.modtype = modtype
         self.filename = filename
         self.stream = stream
@@ -544,7 +563,8 @@ def find_module(space, modulename, w_modulename, partname, w_path,
                     filename = filepart + suffix
                     stream = streamio.open_file_as_stream(filename, filemode)
                     try:
-                        return FindInfo(modtype, filename, stream, suffix, filemode)
+                        return FindInfo(modtype, filename, stream,
+                                        suffix, filemode)
                     except:
                         stream.close()
                         raise
@@ -908,7 +928,7 @@ def make_compiled_pathname(pathname):
     for i in range(len(fname)):
         if fname[i] == '.':
             ext = fname[:i + 1]
-    
+
     result = (pathname[:lastpos] + "__pycache__" + lastsep +
               ext + PYC_TAG + '.pyc')
     return result

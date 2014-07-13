@@ -106,7 +106,19 @@ def load_module(space, w_name, w_file, w_filename, w_info):
     w_suffix, w_filemode, w_modtype = space.unpackiterable(w_info, 3)
 
     filename = space.fsencode_w(w_filename)
-    filemode = space.str_w(w_filemode)
+    if w_filemode is not space.w_None:
+        filemode = None
+    elif not space.isinstance_w(w_filemode, space.w_unicode):
+        raise oefmt(space.w_ValueError, "filemode must be str not %T",
+                    w_filemode)
+    else:
+        u_filemode = space.unicode_w(w_filemode)
+        try:
+            filemode = u_filemode.encode('ascii')
+        except UnicodeEncodeError:
+            raise OperationError(space.w_ValueError,
+                                 space.wrap(u"Invalid filemode %s" %
+                                            u_filemode))
     if space.is_w(w_file, space.w_None):
         stream = None
     else:

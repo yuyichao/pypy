@@ -70,7 +70,8 @@ class W_Root(object):
 
     def setclass(self, space, w_subtype):
         raise OperationError(space.w_TypeError,
-                             space.wrap("__class__ assignment: only for heap types"))
+                             space.wrap(u"__class__ assignment: only for "
+                                        "heap types"))
 
     def user_setup(self, space, w_subtype):
         raise NotImplementedError("only for interp-level user subclasses "
@@ -78,7 +79,7 @@ class W_Root(object):
 
     def getname(self, space):
         try:
-            return space.unicode_w(space.getattr(self, space.wrap('__name__')))
+            return space.unicode_w(space.getattr(self, space.wrap(u'__name__')))
         except OperationError, e:
             if e.match(space, space.w_TypeError) or e.match(space, space.w_AttributeError):
                 return u'?'
@@ -1728,7 +1729,7 @@ class AppExecCache(SpaceCache):
         source = py.code.Source("def anonymous%s\n" % source)
         w_glob = space.newdict(module=True)
         space.exec_(str(source), w_glob, w_glob)
-        return space.getitem(w_glob, space.wrap('anonymous'))
+        return space.getitem(w_glob, space.wrap(u'anonymous'))
 
 
 # Table describing the regular part of the interface of object spaces,

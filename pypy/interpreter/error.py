@@ -5,7 +5,7 @@ import sys
 import traceback
 from errno import EINTR
 
-from rpython.rlib import jit
+from rpython.rlib import jit, rstring
 from rpython.rlib.objectmodel import we_are_translated, specialize
 
 from pypy.interpreter import debug
@@ -409,6 +409,7 @@ def decompose_valuefmt(valuefmt):
     return tuple(parts), tuple(formats)
 
 def get_operrcls2(valuefmt):
+    rstring.check_ascii(valuefmt)
     valuefmt = valuefmt.decode('ascii')
     strings, formats = decompose_valuefmt(valuefmt)
     assert len(strings) == len(formats) + 1
