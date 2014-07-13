@@ -7,9 +7,12 @@ from pypy.module.cpyext.pyobject import PyObject, borrow_from
 def PySys_GetObject(space, name):
     """Return the object name from the sys module or NULL if it does
     not exist, without setting an exception."""
-    name = rffi.charp2str(name)
     w_dict = space.sys.getdict(space)
-    w_obj = space.finditem_str(w_dict, name)
+    try:
+        w_name = space.wrap(rffi.charp2str(name).decode('utf-8'))
+        w_obj = space.getitem(w_dict, w_name)
+    except:
+        w_obj = None
     return borrow_from(None, w_obj)
 
 @cpython_api([CONST_STRING, PyObject], rffi.INT_real, error=-1)

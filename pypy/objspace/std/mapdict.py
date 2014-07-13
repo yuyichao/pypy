@@ -242,7 +242,7 @@ class DevolvedDictTerminator(Terminator):
         if selector[1] == DICT:
             space = self.space
             w_dict = obj.getdict(space)
-            return space.finditem_str(w_dict, selector[0])
+            return space.finditem_utf8(w_dict, selector[0])
         return Terminator._read_terminator(self, obj, selector)
 
     def _write_terminator(self, obj, selector, w_value):

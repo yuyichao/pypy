@@ -283,7 +283,7 @@ class Arguments(object):
                     missing += 1
                     continue
                 name = signature.kwonlyargnames[i - co_argcount]
-                w_def = self.space.finditem_str(w_kw_defs, name)
+                w_def = self.space.finditem_utf8(w_kw_defs, name)
                 if w_def is not None:
                     scope_w[i] = w_def
                 else:

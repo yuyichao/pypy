@@ -832,7 +832,7 @@ class __extend__(pyframe.PyFrame):
         w_varname = self.getname_w(nameindex)
         varname = self.space.identifier_w(w_varname)
         if self.w_locals is not self.w_globals:
-            w_value = self.space.finditem_str(self.w_locals, varname)
+            w_value = self.space.finditem_utf8(self.w_locals, varname)
             if w_value is not None:
                 self.pushvalue(w_value)
                 return
@@ -844,7 +844,7 @@ class __extend__(pyframe.PyFrame):
         self.pushvalue(w_value)
 
     def _load_global(self, varname):
-        w_value = self.space.finditem_str(self.w_globals, varname)
+        w_value = self.space.finditem_utf8(self.w_globals, varname)
         if w_value is None:
             # not in the globals, now look in the built-ins
             w_value = self.get_builtin().getdictvalue(self.space, varname)

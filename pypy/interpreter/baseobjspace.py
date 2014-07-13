@@ -38,7 +38,7 @@ class W_Root(object):
     def getdictvalue(self, space, attr):
         w_dict = self.getdict(space)
         if w_dict is not None:
-            return space.finditem_str(w_dict, attr)
+            return space.finditem_utf8(w_dict, attr)
         return None
 
     def setdictvalue(self, space, attr, w_value):
@@ -747,7 +747,15 @@ class ObjSpace(object):
         return self.setitem(w_obj, self.wrap(key), w_value)
 
     def finditem_str(self, w_obj, key):
+        rstring.check_ascii(key)
         return self.finditem(w_obj, self.wrap(key))
+
+    def finditem_utf8(self, w_obj, key):
+        try:
+            w_key = self.wrap(key.decode('utf-8'))
+        except UnicodeDecodeError:
+            return None
+        return self.finditem(w_obj, w_key)
 
     def finditem(self, w_obj, w_key):
         try:

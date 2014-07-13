@@ -52,7 +52,8 @@ def PyDict_GetItemString(space, w_dict, key):
     """This is the same as PyDict_GetItem(), but key is specified as a
     char*, rather than a PyObject*."""
     try:
-        w_res = space.finditem_str(w_dict, rffi.charp2str(key))
+        w_key = space.wrap(rffi.charp2str(key).decode('utf-8'))
+        w_res = space.getitem(w_dict, w_key)
     except:
         w_res = None
     if w_res is None:

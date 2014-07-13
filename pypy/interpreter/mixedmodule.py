@@ -84,7 +84,7 @@ class MixedModule(Module):
         return self.space.call_function(w_builtin, *args_w)
 
     def getdictvalue(self, space, name):
-        w_value = space.finditem_str(self.w_dict, name)
+        w_value = space.finditem_utf8(self.w_dict, name)
         if self.lazy and w_value is None:
             return self._load_lazily(space, name)
         return w_value

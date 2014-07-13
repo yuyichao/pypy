@@ -132,7 +132,8 @@ def check_sys_modules(space, w_modulename):
 
 def check_sys_modules_w(space, modulename):
     rstring.check_utf8(modulename)
-    return space.finditem_str(space.sys.get('modules'), modulename)
+    return space.finditem(space.sys.get('modules'),
+                          space.wrap(modulename.decode('utf-8')))
 
 @jit.elidable
 def _get_dot_position(str, n):

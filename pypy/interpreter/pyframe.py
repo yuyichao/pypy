@@ -548,7 +548,7 @@ class PyFrame(W_Root):
 
         for i in range(min(len(varnames), numlocals)):
             name = varnames[i]
-            w_value = self.space.finditem_str(self.w_locals, name)
+            w_value = self.space.finditem_utf8(self.w_locals, name)
             if w_value is not None:
                 new_fastlocals_w[i] = w_value
 
@@ -558,7 +558,7 @@ class PyFrame(W_Root):
         for i in range(len(freevarnames)):
             name = freevarnames[i]
             cell = self.cells[i]
-            w_value = self.space.finditem_str(self.w_locals, name)
+            w_value = self.space.finditem_utf8(self.w_locals, name)
             if w_value is not None:
                 cell.set(w_value)
 
