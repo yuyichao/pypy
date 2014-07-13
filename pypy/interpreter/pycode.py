@@ -169,8 +169,6 @@ class PyCode(eval.Code):
         for const in code.co_consts:
             if isinstance(const, types.CodeType): # from stable compiler
                 const = code_hook(space, const, hidden_applevel, code_hook)
-            if isinstance(const, str):
-                rstring.check_ascii(const)
             newconsts_w[num] = space.wrap(const)
             num += 1
         # stick the underlying CPython magic value, if the code object

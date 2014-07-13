@@ -107,12 +107,10 @@ class ASTBuilder(object):
 
     def error(self, msg, n):
         """Raise a SyntaxError with the lineno and column set to n's."""
-        assert isinstance(msg, unicode)
         raise SyntaxError(msg, n.lineno, n.column,
                           filename=self.compile_info.filename)
 
     def error_ast(self, msg, ast_node):
-        assert isinstance(msg, unicode)
         raise SyntaxError(msg, ast_node.lineno, ast_node.col_offset,
                           filename=self.compile_info.filename)
 

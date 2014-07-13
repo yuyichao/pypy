@@ -1,7 +1,9 @@
+from rpython.rlib.objectmodel import specialize
 from rpython.rlib.rstring import check_ascii
 from rpython.rlib.runicode import str_decode_utf_8
 
 
+@specialize.arg(0)
 def syntax_error_utf8(fmt, s, lineno=0, offset=0, text=None, filename=None,
                       lastlineno=0):
     return SyntaxError(fmt % str_decode_utf_8(s, len(s), 'replace')[0],
@@ -9,6 +11,7 @@ def syntax_error_utf8(fmt, s, lineno=0, offset=0, text=None, filename=None,
                        filename=filename, lastlineno=lastlineno)
 
 
+@specialize.arg(0)
 def syntax_error_ascii(fmt, s, lineno=0, offset=0, text=None, filename=None,
                        lastlineno=0):
     check_ascii(s)
@@ -21,7 +24,6 @@ class SyntaxError(Exception):
 
     def __init__(self, msg, lineno=0, offset=0, text=None, filename=None,
                  lastlineno=0):
-        assert isinstance(msg, unicode)
         self.msg = msg
         self.lineno = lineno
         self.offset = offset
@@ -70,7 +72,6 @@ class ASTError(Exception):
 class TokenError(SyntaxError):
 
     def __init__(self, msg, line, lineno, column, tokens, lastlineno=0):
-        assert isinstance(msg, unicode)
         SyntaxError.__init__(self, msg, lineno, column, line,
                              lastlineno=lastlineno)
         self.tokens = tokens
@@ -78,6 +79,5 @@ class TokenError(SyntaxError):
 class TokenIndentationError(IndentationError):
 
     def __init__(self, msg, line, lineno, column, tokens):
-        assert isinstance(msg, unicode)
         SyntaxError.__init__(self, msg, lineno, column, line)
         self.tokens = tokens

@@ -446,6 +446,8 @@ class __extend__(pairtype(SomeString, SomeUnicodeString),
 class __extend__(pairtype(SomeString, SomeTuple),
                  pairtype(SomeUnicodeString, SomeTuple)):
     def mod((s_string, s_tuple)):
+        if not s_string.is_immutable_constant():
+            raise AnnotatorError("string formatting with non constant format")
         is_string = isinstance(s_string, SomeString)
         is_unicode = isinstance(s_string, SomeUnicodeString)
         assert is_string or is_unicode
@@ -475,6 +477,8 @@ class __extend__(pairtype(SomeString, SomeObject),
                  pairtype(SomeUnicodeString, SomeObject)):
 
     def mod((s_string, args)):
+        if not s_string.is_immutable_constant():
+            raise AnnotatorError("string formatting with non constant format")
         if isinstance(args, SomeFloat):
             return s_string.tobasestring()
         if isinstance(args, (SomeString, SomeUnicodeString)):

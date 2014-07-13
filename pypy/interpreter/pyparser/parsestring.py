@@ -234,5 +234,4 @@ def decode_utf8(space, s, ps, end, encoding):
     return v, ps
 
 def raise_app_valueerror(space, msg):
-    assert isinstance(msg, unicode)
     raise OperationError(space.w_ValueError, space.wrap(msg))

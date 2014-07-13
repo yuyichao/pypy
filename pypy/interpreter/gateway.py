@@ -642,8 +642,7 @@ class BuiltinCode(Code):
         return self.sig
 
     def getdocstring(self, space):
-        if isinstance(self.docstring, str):
-            check_ascii(self.docstring)
+        check_ascii(self.docstring)
         return space.wrap(self.docstring)
 
     def funcrun(self, func, args):
@@ -1037,14 +1036,12 @@ class ApplevelClass:
 
     def buildmodule(self, space, name='applevel'):
         from pypy.interpreter.module import Module
-        if isinstance(name, str):
-            check_ascii(name)
+        check_ascii(name)
         return Module(space, space.wrap(name), self.getwdict(space))
 
     def wget(self, space, name):
         w_globals = self.getwdict(space)
-        if isinstance(name, str):
-            check_ascii(name)
+        check_ascii(name)
         return space.getitem(w_globals, space.wrap(name))
 
     def interphook(self, name):
@@ -1095,8 +1092,7 @@ class ApplevelCache(SpaceCache):
 def build_applevel_dict(self, space):
     "NOT_RPYTHON"
     w_glob = space.newdict(module=True)
-    if isinstance(self.modname, str):
-        check_ascii(self.modname)
+    check_ascii(self.modname)
     space.setitem(w_glob, space.wrap(u'__name__'), space.wrap(self.modname))
     space.exec_(self.source, w_glob, w_glob,
                 hidden_applevel=self.hidden_applevel,

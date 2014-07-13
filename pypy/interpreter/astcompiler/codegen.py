@@ -216,7 +216,6 @@ class PythonCodeGenerator(assemble.PythonCodeMaker):
             "mismatched frame blocks"
 
     def error(self, msg, node):
-        assert isinstance(msg, unicode)
         raise SyntaxError(msg, node.lineno, node.col_offset,
                           filename=self.compile_info.filename)
 

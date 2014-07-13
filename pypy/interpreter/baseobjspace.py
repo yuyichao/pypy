@@ -578,8 +578,7 @@ class ObjSpace(object):
         installed_builtin_modules.append('__exceptions__')
         installed_builtin_modules.sort()
         for fn in installed_builtin_modules:
-            if isinstance(fn, str):
-                rstring.check_ascii(fn)
+            rstring.check_ascii(fn)
 
         w_builtin_module_names = self.newtuple(
             [self.wrap(fn) for fn in installed_builtin_modules])
@@ -1106,8 +1105,7 @@ class ObjSpace(object):
         return w_res
 
     def call_method(self, w_obj, methname, *arg_w):
-        if isinstance(methname, str):
-            rstring.check_ascii(methname)
+        rstring.check_ascii(methname)
         w_meth = self.getattr(w_obj, self.wrap(methname))
         return self.call_function(w_meth, *arg_w)
 

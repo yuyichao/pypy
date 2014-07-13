@@ -54,7 +54,6 @@ def get_so_extension(space):
     return '.' + soabi + SO
 
 def fsdecode(space, s):
-    assert isinstance(s, bytes)
     try:
         # ascii encoding works at initialization time
         return space.wrap(s.decode('ascii'))
@@ -62,7 +61,6 @@ def fsdecode(space, s):
         return space.fsdecode(space.wrapbytes(s))
 
 def fsdecode_w(space, s):
-    assert isinstance(s, bytes)
     return space.unicode0_w(space.fsdecode(space.wrapbytes(s)))
 
 def file_exists(path):
@@ -102,12 +100,10 @@ def find_modtype(space, filepart):
 
 if sys.platform.startswith('linux') or 'freebsd' in sys.platform:
     def case_ok(filename):
-        assert isinstance(filename, str)
         return True
 else:
     # XXX that's slow
     def case_ok(filename):
-        assert isinstance(filename, str)
         index = rightmost_sep(filename)
         if index < 0:
             directory = os.curdir
