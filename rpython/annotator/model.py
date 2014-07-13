@@ -43,6 +43,7 @@ class State(object):
     # A global attribute :-(  Patch it with 'True' to enable checking of
     # the no_nul attribute...
     check_str_without_nul = False
+    check_str_type = False
 TLS = State()
 
 class SomeObject(object):
@@ -251,11 +252,15 @@ class SomeStringOrUnicode(SomeObject):
             return False
         d1 = self.__dict__
         d2 = other.__dict__
-        if not TLS.check_str_without_nul:
+        if not TLS.check_str_without_nul or not TLS.check_str_type:
             d1 = d1.copy()
-            d1['no_nul'] = 0
             d2 = d2.copy()
-            d2['no_nul'] = 0
+            if not TLS.check_str_without_nul:
+                d1['no_nul'] = 0
+                d2['no_nul'] = 0
+            if not TLS.check_str_type:
+                d1['str_type'] = 0
+                d2['str_type'] = 0
         return d1 == d2
 
     def nonnoneify(self):

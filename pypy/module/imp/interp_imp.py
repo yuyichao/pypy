@@ -128,16 +128,14 @@ def load_module(space, w_name, w_file, w_filename, w_info):
     else:
         stream = get_file(space, w_file, filename, filemode)
 
-    find_info = importing.FindInfo(
-        space.int_w(w_modtype),
-        filename,
-        stream,
-        space.fsencode_w(w_suffix),
-        filemode)
-    return importing.load_module(
-        space, w_name, find_info, reuse=True)
+    find_info = importing.FindInfo(space.int_w(w_modtype), filename, stream,
+                                   space.fsencode_w(w_suffix), filemode)
+    return importing.load_module(space, w_name, find_info, reuse=True)
 
 def load_source(space, w_modulename, w_filename, w_file=None):
+    if not space.isinstance_w(w_modulename, space.unicode_w):
+        raise oefmt(space.w_TypeError, "modulename must be a str, not %T",
+                    w_modulename)
     if not space.isinstance_w(w_filename, space.unicode_w):
         raise oefmt(space.w_TypeError, "filename must be a str, not %T",
                     w_filename)
