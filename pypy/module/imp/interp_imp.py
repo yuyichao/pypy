@@ -57,6 +57,8 @@ def get_file(space, w_file, filename, filemode):
         return streamio.fdopen_as_stream(fd, filemode)
 
 def find_module(space, w_name, w_path=None):
+    if not space.isinstance_w(w_name, space.unicode_w):
+        raise oefmt(space.w_TypeError, "name must be a str, not %T", w_name)
     name = space.fsencode_w(w_name)
     if space.is_none(w_path):
         w_path = None
@@ -64,9 +66,11 @@ def find_module(space, w_name, w_path=None):
     find_info = importing.find_module(
         space, name, w_name, name, w_path, use_loader=False)
     if not find_info:
-        raise oefmt(space.w_ImportError, "No module named %s", name)
+        raise OperationError(space.w_ImportError,
+                             space.wrap(u"No module named %s" %
+                                        space.unicode_w(w_name)))
 
-    w_filename = space.fsdecode(space.wrapbytes(find_info.filename))
+    w_filename = importing.fsdecode(space, find_info.filename)
     stream = find_info.stream
 
     if stream is not None:
@@ -128,12 +132,15 @@ def load_module(space, w_name, w_file, w_filename, w_info):
         space.int_w(w_modtype),
         filename,
         stream,
-        space.str_w(w_suffix),
+        space.fsencode_w(w_suffix),
         filemode)
     return importing.load_module(
         space, w_name, find_info, reuse=True)
 
 def load_source(space, w_modulename, w_filename, w_file=None):
+    if not space.isinstance_w(w_filename, space.unicode_w):
+        raise oefmt(space.w_TypeError, "filename must be a str, not %T",
+                    w_filename)
     filename = space.fsencode_w(w_filename)
 
     stream = get_file(space, w_file, filename, 'U')
@@ -173,9 +180,9 @@ def load_compiled(space, w_modulename, filename, w_file=None):
 @unwrap_spec(filename='fsencode')
 def load_dynamic(space, w_modulename, filename, w_file=None):
     if not space.config.objspace.usemodules.cpyext:
-        raise OperationError(space.w_ImportError, space.wrap(
-            "Not implemented"))
-    importing.load_c_extension(space, filename, space.str_w(w_modulename))
+        raise OperationError(space.w_ImportError,
+                             space.wrap(u"Not implemented"))
+    importing.load_c_extension_w(space, filename, w_modulename)
     return importing.check_sys_modules(space, w_modulename)
 
 def new_module(space, w_name):

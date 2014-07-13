@@ -2,11 +2,13 @@ from pypy.interpreter import module
 from pypy.module.cpyext.api import (
     generic_cpy_call, cpython_api, PyObject, CONST_STRING)
 from pypy.module.cpyext.pyobject import borrow_from
-from rpython.rtyper.lltypesystem import lltype, rffi
 from pypy.interpreter.error import OperationError
 from pypy.interpreter.module import Module
 from pypy.interpreter.pycode import PyCode
 from pypy.module.imp import importing
+
+from rpython.rtyper.lltypesystem import lltype, rffi
+from rpython.rlib import rstring
 
 @cpython_api([PyObject], PyObject)
 def PyImport_Import(space, w_name):
@@ -71,7 +73,13 @@ def PyImport_AddModule(space, name):
     not already present."""
     from pypy.module.imp.importing import check_sys_modules_w
     modulename = rffi.charp2str(name)
-    w_modulename = space.wrap(modulename)
+    try:
+        u_modulename = modulename.decode('utf-8')
+    except UnicodeDecodeError:
+        raise OperationError(space.w_ValueError,
+                             space.wrap(u"Invalid modulename."))
+    modulename = rstring.assert_utf8(modulename)
+    w_modulename = space.wrap(u_modulename)
     w_mod = check_sys_modules_w(space, modulename)
     if not w_mod or space.is_w(w_mod, space.w_None):
         w_mod = Module(space, w_modulename)

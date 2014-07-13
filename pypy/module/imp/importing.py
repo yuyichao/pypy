@@ -43,6 +43,7 @@ def get_so_extension(space):
         soabi = space.config.objspace.soabi
     else:
         soabi = DEFAULT_SOABI
+    rstring.check_ascii(soabi)
 
     if not soabi:
         return SO
@@ -51,6 +52,18 @@ def get_so_extension(space):
         soabi += 'i'
 
     return '.' + soabi + SO
+
+def fsdecode(space, s):
+    assert isinstance(s, bytes)
+    try:
+        # ascii encoding works at initialization time
+        return space.wrap(s.decode('ascii'))
+    except UnicodeDecodeError:
+        return space.fsdecode(space.wrapbytes(s))
+
+def fsdecode_w(space, s):
+    assert isinstance(s, bytes)
+    return space.unicode0_w(space.fsdecode(space.wrapbytes(s)))
 
 def file_exists(path):
     """Tests whether the given path is an existing regular file."""
@@ -89,16 +102,18 @@ def find_modtype(space, filepart):
 
 if sys.platform.startswith('linux') or 'freebsd' in sys.platform:
     def case_ok(filename):
+        assert isinstance(filename, str)
         return True
 else:
     # XXX that's slow
     def case_ok(filename):
+        assert isinstance(filename, str)
         index = rightmost_sep(filename)
         if index < 0:
             directory = os.curdir
         else:
-            directory = filename[:index+1]
-            filename = filename[index+1:]
+            directory = filename[:index + 1]
+            filename = filename[index + 1:]
         try:
             return filename in os.listdir(directory)
         except OSError:
@@ -116,42 +131,48 @@ def check_sys_modules(space, w_modulename):
     return space.finditem(space.sys.get('modules'), w_modulename)
 
 def check_sys_modules_w(space, modulename):
+    rstring.check_utf8(modulename)
     return space.finditem_str(space.sys.get('modules'), modulename)
 
 @jit.elidable
 def _get_dot_position(str, n):
     # return the index in str of the '.' such that there are n '.'-separated
     # strings after it
+    rstring.check_utf8(str)
     result = len(str)
     while n > 0 and result >= 0:
         n -= 1
         result = str.rfind('.', 0, result)
     return result
 
-def _convert_univode_attr(space, w_value, name):
+def _convert_utf8(space, w_value):
     if space.isinstance_w(w_value, space.w_unicode):
         try:
             u_value = space.unicode_w(w_value)
             value = u_value.encode('utf-8')
-            u_value = rstring.assert_utf8(u_value)
-            if not '\x00' in value:
-                return rstring.assert_str0(value), rstring.assert_str0(u_value)
+            return value, rstring.assert_utf8(u_value)
         except UnicodeEncodeError:
             pass
+    return None, None
+
+def _convert_unicode_attr(space, w_value, name):
+    value, u_value = _convert_utf8(space, w_value)
+    if value is not None and '\x00' not in value:
+        return rstring.assert_str0(value), rstring.assert_str0(u_value)
     raise OperationError(space.w_ValueError,
                          space.wrap(u"%s set to non-string" % name))
 
 def _get_relative_name(space, modulename, level, w_globals):
+    rstring.check_utf8(modulename)
+
     w = space.wrap
     ctxt_w_package = space.finditem_str(w_globals, '__package__')
     ctxt_w_package = jit.promote(ctxt_w_package)
     level = jit.promote(level)
 
-    rstring.check_utf8(modulename)
-
     ctxt_package = None
     if ctxt_w_package is not None and ctxt_w_package is not space.w_None:
-        ctxt_package, ctxt_u_package = _convert_univode_attr(
+        ctxt_package, ctxt_u_package = _convert_unicode_attr(
             space, ctxt_w_package, u'__package__')
 
     if ctxt_package is not None:
@@ -194,7 +215,7 @@ def _get_relative_name(space, modulename, level, w_globals):
         ctxt_w_name = jit.promote(ctxt_w_name)
         ctxt_name = None
         if ctxt_w_name is not None:
-            ctxt_name, ctxt_u_name = _convert_univode_attr(
+            ctxt_name, ctxt_u_name = _convert_unicode_attr(
                 space, ctxt_w_name, u'__name__')
 
         if not ctxt_name:
@@ -237,8 +258,8 @@ def _get_relative_name(space, modulename, level, w_globals):
 
 
 @unwrap_spec(name='unicode0', level=int)
-def importhook(space, name, w_globals=None,
-               w_locals=None, w_fromlist=None, level=-1):
+def importhook(space, name, w_globals=None, w_locals=None,
+               w_fromlist=None, level=-1):
     w = space.wrap
     try:
         modulename = name.encode('utf-8')
@@ -318,6 +339,7 @@ def absolute_import_try(space, modulename, baselevel, fromlist_w):
     """
     w_path = None
     last_dot = 0
+    rstring.check_utf8(modulename)
     if '.' not in modulename:
         w_mod = check_sys_modules_w(space, modulename)
         first = w_mod
@@ -391,8 +413,13 @@ def _absolute_import(space, modulename, baselevel, fromlist_w, tentative):
                     fromlist_w = space.fixedview(w_all)
             for w_name in fromlist_w:
                 if try_getattr(space, w_mod, w_name) is None:
-                    load_part(space, w_path, prefix, space.str0_w(w_name),
-                              w_mod, tentative=1)
+                    name, u_name = _convert_utf8(space, w_name)
+                    if name is None or "\x00" in name:
+                        raise OperationError(
+                            space.w_ValueError,
+                            space.wrap(u"Attribute name must be string"))
+                    name = rstring.assert_str0(name)
+                    load_part(space, w_path, prefix, name, w_mod, tentative=1)
         return w_mod
     else:
         return first
@@ -545,7 +572,18 @@ def find_module(space, modulename, w_modulename, partname, w_path,
                 if w_loader:
                     return FindInfo.fromLoader(w_loader)
 
-            path = space.str0_w(w_pathitem)
+            if not space.isinstance_w(w_pathitem, space.w_unicode):
+                raise OperationError(space.w_ValueError,
+                                     space.wrap(u"Path item must be string"))
+            try:
+                path = space.unicode_w(w_pathitem).encode('ascii')
+            except UnicodeEncodeError:
+                path = space.fsencode_w(w_pathitem)
+            if '\x00' in path:
+                raise OperationError(space.w_TypeError, space.wrap(
+                    u'argument must be a unicode string '
+                    'without NUL characters'))
+            path = rstring.assert_str0(path)
             filepart = os.path.join(path, partname)
             if os.path.isdir(filepart) and case_ok(filepart):
                 initfile = os.path.join(filepart, '__init__')
@@ -553,8 +591,8 @@ def find_module(space, modulename, w_modulename, partname, w_path,
                 if modtype in (PY_SOURCE, PY_COMPILED):
                     return FindInfo(PKG_DIRECTORY, filepart, None)
                 else:
-                    msg = ("Not importing directory '%s' missing __init__.py" %
-                           (filepart,))
+                    msg = (u"Not importing directory '%s' missing __init__.py" %
+                           fsdecode_w(space, filepart))
                     space.warn(space.wrap(msg), space.w_ImportWarning)
             modtype, suffix, filemode = find_modtype(space, filepart)
             try:
@@ -578,10 +616,11 @@ def find_module(space, modulename, w_modulename, partname, w_path,
 def _prepare_module(space, w_mod, filename, pkgdir):
     w = space.wrap
     space.sys.setmodule(w_mod)
-    space.setattr(w_mod, w(u'__file__'), w(filename))
+    space.setattr(w_mod, w(u'__file__'), fsdecode(space, filename))
     space.setattr(w_mod, w(u'__doc__'), space.w_None)
     if pkgdir is not None:
-        space.setattr(w_mod, w(u'__path__'), space.newlist([w(pkgdir)]))
+        space.setattr(w_mod, w(u'__path__'),
+                      space.newlist([fsdecode(space, pkgdir)]))
 
 def add_module(space, w_name):
     w_mod = check_sys_modules(space, w_name)
@@ -596,13 +635,22 @@ def load_c_extension(space, filename, modulename):
     from pypy.module.cpyext.api import load_extension_module
     load_extension_module(space, filename, modulename)
 
+def load_c_extension_w(space, filename, w_modulename):
+    modulename, u_modulename = _convert_utf8(space, w_modulename)
+    if modulename is None or '\x00' in modulename:
+        raise OperationError(
+            space.w_ValueError,
+            space.wrap(u"Invalid module name %s" % u_modulename))
+    load_c_extension(space, filename, modulename)
+
 @jit.dont_look_inside
 def load_module(space, w_modulename, find_info, reuse=False):
     if find_info is None:
         return
 
     if find_info.w_loader:
-        return space.call_method(find_info.w_loader, "load_module", w_modulename)
+        return space.call_method(find_info.w_loader,
+                                 "load_module", w_modulename)
 
     if find_info.modtype == C_BUILTIN:
         if find_info.filename not in space.builtin_modules:
@@ -639,11 +687,12 @@ def load_module(space, w_modulename, find_info, reuse=False):
             elif find_info.modtype == PY_COMPILED:
                 magic = _r_long(find_info.stream)
                 timestamp = _r_long(find_info.stream)
-                load_compiled_module(space, w_modulename, w_mod, find_info.filename,
-                                     magic, timestamp, find_info.stream.readall())
+                load_compiled_module(space, w_modulename, w_mod,
+                                     find_info.filename, magic, timestamp,
+                                     find_info.stream.readall())
                 return w_mod
             elif find_info.modtype == PKG_DIRECTORY:
-                w_path = space.newlist([space.wrap(find_info.filename)])
+                w_path = space.newlist([fsdecode(space, find_info.filename)])
                 space.setattr(w_mod, space.wrap(u'__path__'), w_path)
                 find_info = find_module(space, "__init__", None, "__init__",
                                         w_path, use_loader=False)
@@ -656,8 +705,9 @@ def load_module(space, w_modulename, find_info, reuse=False):
                 # fetch the module again, in case of "substitution"
                 w_mod = check_sys_modules(space, w_modulename)
                 return w_mod
-            elif find_info.modtype == C_EXTENSION and space.config.objspace.usemodules.cpyext:
-                load_c_extension(space, find_info.filename, space.str_w(w_modulename))
+            elif (find_info.modtype == C_EXTENSION and
+                  space.config.objspace.usemodules.cpyext):
+                load_c_extension_w(space, find_info.filename, w_modulename)
                 return check_sys_modules(space, w_modulename)
         except OperationError:
             w_mods = space.sys.get('modules')
@@ -667,7 +717,9 @@ def load_module(space, w_modulename, find_info, reuse=False):
 def load_part(space, w_path, prefix, partname, w_parent, tentative):
     w = space.wrap
     modulename = '.'.join(prefix + [partname])
-    w_modulename = w(modulename)
+    rstring.check_utf8(modulename)
+    u_modulename = modulename.decode('utf-8')
+    w_modulename = w(u_modulename)
     w_mod = check_sys_modules(space, w_modulename)
 
     if w_mod is not None:
@@ -700,7 +752,9 @@ def load_part(space, w_path, prefix, partname, w_parent, tentative):
         return None
     else:
         # ImportError
-        raise oefmt(space.w_ImportError, "No module named %s", modulename)
+        raise OperationError(
+            space.w_ImportError,
+            space.wrap(u"No module named %s" % u_modulename))
 
 @jit.dont_look_inside
 def reload(space, w_module):
@@ -712,10 +766,12 @@ def reload(space, w_module):
             space.wrap(u"reload() argument must be module"))
 
     w_modulename = space.getattr(w_module, space.wrap(u"__name__"))
-    modulename = space.str0_w(w_modulename)
+    modulename, u_modulename = _convert_unicode_attr(space, w_modulename,
+                                                     u'__name__')
     if not space.is_w(check_sys_modules(space, w_modulename), w_module):
-        raise oefmt(space.w_ImportError,
-                    "reload(): module %s not in sys.modules", modulename)
+        raise OperationError(space.w_ImportError,
+                             space.wrap(u"reload(): module %s not in "
+                                        "sys.modules" % u_modulename))
 
     try:
         w_mod = space.reloading_modules[modulename]
@@ -730,21 +786,25 @@ def reload(space, w_module):
         subname = namepath[-1]
         parent_name = '.'.join(namepath[:-1])
         if parent_name:
+            rstring.check_utf8(parent_name)
             w_parent = check_sys_modules_w(space, parent_name)
             if w_parent is None:
-                raise oefmt(space.w_ImportError,
-                            "reload(): parent %s not in sys.modules",
-                            parent_name)
+                raise OperationError(space.w_ImportError,
+                                     space.wrap(u"reload(): parent %s not in "
+                                                "sys.modules" %
+                                                parent_name.decode('utf-8')))
             w_path = space.getattr(w_parent, space.wrap(u"__path__"))
         else:
             w_path = None
 
-        find_info = find_module(
-            space, modulename, w_modulename, subname, w_path)
+        find_info = find_module(space, modulename, w_modulename,
+                                subname, w_path)
 
         if not find_info:
             # ImportError
-            raise oefmt(space.w_ImportError, "No module named %s", modulename)
+            raise OperationError(space.w_ImportError,
+                                 space.wrap(u"No module named %s" %
+                                            u_modulename))
 
         try:
             try:
@@ -892,11 +952,10 @@ def exec_code_module(space, w_mod, code_w, pathname, cpathname,
                       space.wrap(u'__builtins__'),
                       space.wrap(space.builtin))
     if write_paths:
-        # TODOs
         if pathname is not None:
             w_pathname = get_sourcefile(space, pathname)
         else:
-            w_pathname = space.wrap(code_w.co_filename)
+            w_pathname = fsdecode(code_w.co_filename)
         space.setitem(w_dict, space.wrap(u"__file__"), w_pathname)
         space.setitem(w_dict, space.wrap(u"__cached__"),
                       space.wrap(cpathname))
@@ -966,7 +1025,7 @@ def get_sourcefile(space, filename):
     start = len(filename) - 4
     stop = len(filename) - 1
     if not 0 <= start <= stop or filename[start:stop].lower() != ".py":
-        return space.wrap(filename)
+        return fsdecode(space, filename)
     py = make_source_pathname(filename)
     if py is None:
         py = filename[:-1]
@@ -976,8 +1035,8 @@ def get_sourcefile(space, filename):
         pass
     else:
         if stat.S_ISREG(st.st_mode):
-            return space.wrap(py)
-    return space.wrap(filename)
+            return fsdecode(space, py)
+    return fsdecode(space, filename)
 
 @jit.dont_look_inside
 def load_source_module(space, w_modulename, w_mod, pathname, source, fd,
@@ -1099,7 +1158,9 @@ def read_compiled_module(space, cpathname, strbuf):
     w_marshal = space.getbuiltinmodule('marshal')
     w_code = space.call_method(w_marshal, 'loads', space.wrapbytes(strbuf))
     if not isinstance(w_code, Code):
-        raise oefmt(space.w_ImportError, "Non-code object in %s", cpathname)
+        raise OperationError(space.w_ImportError,
+                             space.wrap(u"Non-code object in %s" %
+                                        fsdecode_w(space, cpathname)))
     return w_code
 
 @jit.dont_look_inside
@@ -1110,7 +1171,9 @@ def load_compiled_module(space, w_modulename, w_mod, cpathname, magic,
     module object.
     """
     if magic != get_pyc_magic(space):
-        raise oefmt(space.w_ImportError, "Bad magic number in %s", cpathname)
+        raise OperationError(space.w_ImportError,
+                             space.wrap(u"Bad magic number in %s" %
+                                        fsdecode_w(space, cpathname)))
     #print "loading pyc file:", cpathname
     code_w = read_compiled_module(space, cpathname, source)
     try:
