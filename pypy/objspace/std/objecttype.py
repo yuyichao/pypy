@@ -23,8 +23,8 @@ def descr__str__(space, w_obj):
     w_type = space.type(w_obj)
     w_impl = w_type.lookup("__repr__")
     if w_impl is None:
-        raise OperationError(space.w_TypeError,      # can it really occur?
-                             space.wrap("operand does not support unary str"))
+        # can it really occur?
+        raise oefmt(space.w_TypeError, "operand does not support unary str")
     return space.get_and_call_function(w_impl, w_obj)
 
 def descr__class__(space, w_obj):
@@ -37,8 +37,8 @@ def descr_set___class__(space, w_obj, w_newcls):
                     "__class__ must be set to new-style class, not '%T' "
                     "object", w_newcls)
     if not w_newcls.is_heaptype():
-        raise OperationError(space.w_TypeError,
-                             space.wrap("__class__ assignment: only for heap types"))
+        raise oefmt(space.w_TypeError,
+                    "__class__ assignment: only for heap types")
     w_oldcls = space.type(w_obj)
     assert isinstance(w_oldcls, W_TypeObject)
     if w_oldcls.get_full_instance_layout() == w_newcls.get_full_instance_layout():
@@ -69,9 +69,8 @@ def descr__new__(space, w_type, __args__):
         try:
             __args__.fixedunpack(0)
         except ValueError:
-            raise OperationError(space.w_TypeError,
-                                 space.wrap("default __new__ takes "
-                                            "no parameters"))
+            raise oefmt(space.w_TypeError,
+                        "default __new__ takes no parameters")
     if w_type.is_abstract():
         _abstract_method_error(space, w_type)
     w_obj = space.allocate_instance(W_ObjectObject, w_type)
@@ -85,8 +84,8 @@ def descr__init__(space, w_obj, __args__):
         try:
             __args__.fixedunpack(0)
         except ValueError:
-            raise OperationError(space.w_TypeError,
-                space.wrap("object.__init__() takes no parameters"))
+            raise oefmt(space.w_TypeError,
+                        "object.__init__() takes no parameters")
 
 
 @gateway.unwrap_spec(proto=int)
@@ -116,10 +115,9 @@ def descr___format__(space, w_obj, w_format_spec):
     elif space.isinstance_w(w_format_spec, space.w_str):
         w_as_str = space.str(w_obj)
     else:
-        msg = "format_spec must be a string"
-        raise OperationError(space.w_TypeError, space.wrap(msg))
+        raise oefmt(space.w_TypeError, "format_spec must be a string")
     if space.len_w(w_format_spec) > 0:
-        msg = "object.__format__ with a non-empty format string is deprecated"
+        msg = u"object.__format__ with a non-empty format string is deprecated"
         space.warn(space.wrap(msg), space.w_PendingDeprecationWarning)
     return space.format(w_as_str, w_format_spec)
 

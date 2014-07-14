@@ -17,7 +17,7 @@ from pypy.interpreter.special import Ellipsis
 from pypy.interpreter.pycode import PyCode
 from pypy.interpreter import gateway, unicodehelper
 from rpython.rlib.rstruct import ieee
-from rpython.rlib.rstring import StringBuilder
+from rpython.rlib.rstring import StringBuilder, check_ascii
 
 from pypy.objspace.std.boolobject    import W_BoolObject
 from pypy.objspace.std.bytesobject  import W_BytesObject
@@ -87,6 +87,7 @@ put_tuple_w(TYPE, tuple_w)  puts tuple_w, an unwrapped list of wrapped objects
 handled_by_any = []
 
 def raise_exception(space, msg):
+    check_ascii(msg)
     raise OperationError(space.w_ValueError, space.wrap(msg))
 
 def marshal_w__None(space, w_none, m):

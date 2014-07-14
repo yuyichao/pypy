@@ -515,7 +515,6 @@ W_NullImporter.typedef = TypeDef(
 class FindInfo:
     def __init__(self, modtype, filename, stream,
                  suffix="", filemode="", w_loader=None):
-        rstring.check_ascii(filemode)
         self.modtype = modtype
         self.filename = filename
         self.stream = stream

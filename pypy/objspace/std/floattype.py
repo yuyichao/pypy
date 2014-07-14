@@ -5,7 +5,7 @@ from rpython.rlib import rfloat, rarithmetic
 from pypy.interpreter import typedef
 from pypy.interpreter.gateway import interp2app, unwrap_spec, WrappedDefault,\
      interpindirect2app
-from pypy.interpreter.error import OperationError
+from pypy.interpreter.error import OperationError, oefmt
 from pypy.objspace.std.register_all import register_all
 from pypy.objspace.std.stdtypedef import StdTypeDef, SMM
 from pypy.objspace.std.model import W_Object
@@ -41,8 +41,8 @@ def descr__new__(space, w_floattype, w_x):
             value = space.charbuf_w(w_value)
         except OperationError as e:
             if e.match(space, space.w_TypeError):
-                raise OperationError(space.w_TypeError, space.wrap(
-                    "float() argument must be a string or a number"))
+                raise oefmt(space.w_TypeError,
+                            "float() argument must be a string or a number")
             raise
         value = _string_to_float(space, w_value, value)
     w_obj = space.allocate_instance(W_FloatObject, w_floattype)
@@ -92,8 +92,7 @@ def descr___getformat__(space, w_cls, kind):
         return space.wrap(_float_format)
     elif kind == "double":
         return space.wrap(_double_format)
-    raise OperationError(space.w_ValueError,
-                         space.wrap("only float and double are valid"))
+    raise oefmt(space.w_ValueError, "only float and double are valid")
 
 _alpha = zip("abcdef", range(10, 16)) + zip("ABCDEF", range(10, 16))
 _hex_to_int = zip("0123456789", range(10)) + _alpha
@@ -119,8 +118,7 @@ def descr_fromhex(space, w_cls, s):
     while i < length and s[i].isspace():
         i += 1
     if i == length:
-        raise OperationError(space.w_ValueError,
-                             space.wrap("invalid hex string"))
+        raise oefmt(space.w_ValueError, "invalid hex string")
     sign = 1
     if s[i] == "-":
         sign = -1
@@ -128,8 +126,7 @@ def descr_fromhex(space, w_cls, s):
     elif s[i] == "+":
         i += 1
     if length == i:
-        raise OperationError(space.w_ValueError,
-                             space.wrap("invalid hex string"))
+        raise oefmt(space.w_ValueError, "invalid hex string")
     if s[i] == "i" or s[i] == "I":
         i += 1
         if length - i >= 2 and s[i:i + 2].lower() == "nf":
@@ -160,28 +157,24 @@ def descr_fromhex(space, w_cls, s):
         total_digits = co_end - co_start
         float_digits = co_end - whole_end
         if not total_digits:
-            raise OperationError(space.w_ValueError,
-                                 space.wrap("invalid hex string"))
+            raise oefmt(space.w_ValueError, "invalid hex string")
         const_one = rfloat.DBL_MIN_EXP - rfloat.DBL_MANT_DIG + sys.maxint // 2
         const_two = sys.maxint // 2 + 1 - rfloat.DBL_MAX_EXP
         if total_digits > min(const_one, const_two) // 4:
-            raise OperationError(space.w_ValueError, space.wrap("way too long"))
+            raise oefmt(space.w_ValueError, "way too long")
         if i < length and (s[i] == "p" or s[i] == "P"):
             i += 1
             if i == length:
-                raise OperationError(space.w_ValueError,
-                                     space.wrap("invalid hex string"))
+                raise oefmt(space.w_ValueError, "invalid hex string")
             exp_sign = 1
             if s[i] == "-" or s[i] == "+":
                 if s[i] == "-":
                     exp_sign = -1
                 i += 1
                 if i == length:
-                    raise OperationError(space.w_ValueError,
-                                         space.wrap("invalid hex string"))
+                    raise oefmt(space.w_ValueError, "invalid hex string")
             if not s[i].isdigit():
-                raise OperationError(space.w_ValueError,
-                                     space.wrap("invalid hex string"))
+                raise oefmt(space.w_ValueError, "invalid hex string")
             exp = ord(s[i]) - ord('0')
             i += 1
             while i < length and s[i].isdigit():
@@ -206,7 +199,7 @@ def descr_fromhex(space, w_cls, s):
         if not total_digits or exp <= -sys.maxint / 2:
             value = 0.0
         elif exp >= sys.maxint // 2:
-            raise OperationError(space.w_OverflowError, space.wrap("too large"))
+            raise oefmt(space.w_OverflowError, "too large")
         else:
             exp -=  4 * float_digits
             top_exp = exp + 4 * (total_digits - 1)
@@ -217,8 +210,7 @@ def descr_fromhex(space, w_cls, s):
             if top_exp < rfloat.DBL_MIN_EXP - rfloat.DBL_MANT_DIG:
                 value = 0.0
             elif top_exp > rfloat.DBL_MAX_EXP:
-                raise OperationError(space.w_OverflowError,
-                                     space.wrap("too large"))
+                raise oefmt(space.w_OverflowError, "too large")
             else:
                 lsb = max(top_exp, rfloat.DBL_MIN_EXP) - rfloat.DBL_MANT_DIG
                 value = 0
@@ -251,14 +243,12 @@ def descr_fromhex(space, w_cls, s):
                             mant_dig = rfloat.DBL_MANT_DIG
                             if (top_exp == rfloat.DBL_MAX_EXP and
                                 value == math.ldexp(2 * half_eps, mant_dig)):
-                                raise OperationError(space.w_OverflowError,
-                                                     space.wrap("too large"))
+                                raise oefmt(space.w_OverflowError, "too large")
                     value = math.ldexp(value, (exp + 4*key_digit))
     while i < length and s[i].isspace():
         i += 1
     if i != length:
-        raise OperationError(space.w_ValueError,
-                             space.wrap("invalid hex string"))
+        raise oefmt(space.w_ValueError, "invalid hex string")
     w_float = space.wrap(sign * value)
     return space.call_function(w_cls, w_float)
 
@@ -306,8 +296,7 @@ def descr___round__(space, w_float, w_ndigits=None):
     # finite x, and ndigits is not unreasonably large
     z = rfloat.round_double(x, ndigits, half_even=True)
     if rfloat.isinf(z):
-        raise OperationError(space.w_OverflowError,
-                             space.wrap("overflow occurred during round"))
+        raise oefmt(space.w_OverflowError, "overflow occurred during round")
     return space.wrap(z)
 
 # ____________________________________________________________

@@ -500,8 +500,7 @@ class W_ListObject(W_Root):
             index = space.getindex_w(w_index, space.w_IndexError, "list index")
             return self.getitem(index)
         except IndexError:
-            raise OperationError(space.w_IndexError,
-                                 space.wrap("list index out of range"))
+            raise oefmt(space.w_IndexError, "list index out of range")
 
     def descr_setitem(self, space, w_index, w_any):
         if isinstance(w_index, W_SliceObject):
@@ -519,8 +518,7 @@ class W_ListObject(W_Root):
         try:
             self.setitem(idx, w_any)
         except IndexError:
-            raise OperationError(space.w_IndexError,
-                                 space.wrap("list index out of range"))
+            raise oefmt(space.w_IndexError, "list index out of range")
 
     def descr_delitem(self, space, w_idx):
         if isinstance(w_idx, W_SliceObject):
@@ -535,8 +533,7 @@ class W_ListObject(W_Root):
         try:
             self.pop(idx)
         except IndexError:
-            raise OperationError(space.w_IndexError,
-                                 space.wrap("list index out of range"))
+            raise oefmt(space.w_IndexError, "list index out of range")
 
     def descr_reversed(self, space):
         'L.__reversed__() -- return a reverse iterator over the list'
@@ -571,8 +568,7 @@ class W_ListObject(W_Root):
         index (default last)'''
         length = self.length()
         if length == 0:
-            raise OperationError(space.w_IndexError,
-                                 space.wrap("pop from empty list"))
+            raise oefmt(space.w_IndexError, "pop from empty list")
         # clearly differentiate between list.pop() and list.pop(index)
         if index == -1:
             return self.pop_end()  # cannot raise because list is not empty
@@ -581,8 +577,7 @@ class W_ListObject(W_Root):
         try:
             return self.pop(index)
         except IndexError:
-            raise OperationError(space.w_IndexError,
-                                 space.wrap("pop index out of range"))
+            raise oefmt(space.w_IndexError, "pop index out of range")
 
     def descr_remove(self, space, w_value):
         'L.remove(value) -- remove first occurrence of value'
@@ -590,8 +585,7 @@ class W_ListObject(W_Root):
         try:
             i = self.find(w_value, 0, sys.maxint)
         except ValueError:
-            raise OperationError(space.w_ValueError,
-                                 space.wrap("list.remove(x): x not in list"))
+            raise oefmt(space.w_ValueError, "list.remove(x): x not in list")
         if i < self.length():  # otherwise list was mutated
             self.pop(i)
 
@@ -606,8 +600,7 @@ class W_ListObject(W_Root):
         try:
             i = self.find(w_value, i, stop)
         except ValueError:
-            raise OperationError(space.w_ValueError,
-                                 space.wrap("list.index(x): x not in list"))
+            raise oefmt(space.w_ValueError, "list.index(x): x not in list")
         return space.wrap(i)
 
     @unwrap_spec(reverse=bool)
@@ -676,8 +669,7 @@ class W_ListObject(W_Root):
             self.__init__(space, sorter.list)
 
         if mucked:
-            raise OperationError(space.w_ValueError,
-                                 space.wrap("list modified during sort"))
+            raise oefmt(space.w_ValueError, "list modified during sort")
 
 find_jmp = jit.JitDriver(greens = ['tp'], reds = 'auto', name = 'list.find')
 
@@ -1790,8 +1782,8 @@ class CustomCompareSort(SimpleSort):
             result = space.int_w(w_result)
         except OperationError, e:
             if e.match(space, space.w_TypeError):
-                raise OperationError(space.w_TypeError,
-                    space.wrap("comparison function must return int"))
+                raise oefmt(space.w_TypeError,
+                            "comparison function must return int")
             raise
         return result < 0
 

@@ -1,4 +1,4 @@
-from pypy.interpreter.error import OperationError
+from pypy.interpreter.error import OperationError, oefmt
 from pypy.objspace.std.tupleobject import W_AbstractTupleObject
 from pypy.objspace.std.util import negate
 from rpython.rlib.objectmodel import compute_hash
@@ -111,8 +111,7 @@ def make_specialised_class(typetuple):
                     if typetuple[i] != object:
                         value = space.wrap(value)
                     return value
-            raise OperationError(space.w_IndexError,
-                                 space.wrap("tuple index out of range"))
+            raise oefmt(space.w_IndexError, "tuple index out of range")
 
     cls.__name__ = ('W_SpecialisedTupleObject_' +
                     ''.join([t.__name__[0] for t in typetuple]))

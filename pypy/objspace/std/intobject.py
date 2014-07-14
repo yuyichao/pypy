@@ -17,7 +17,7 @@ from rpython.rlib.rbigint import (
     InvalidEndiannessError, InvalidSignednessError, rbigint)
 from rpython.rlib.rfloat import DBL_MANT_DIG
 from rpython.rlib.rstring import (
-    InvalidBaseError, ParseStringError, ParseStringOverflowError)
+    InvalidBaseError, ParseStringError, ParseStringOverflowError, check_ascii)
 from rpython.tool.sourcetools import func_renamer, func_with_new_name
 
 from pypy.interpreter import typedef
@@ -783,6 +783,7 @@ def wrapint(space, x):
 
 def wrap_parsestringerror(space, e, w_source):
     if isinstance(e, InvalidBaseError):
+        check_ascii(e.msg)
         w_msg = space.wrap(e.msg)
     else:
         w_msg = space.wrap(u'%s: %s' % (unicode(e.msg),

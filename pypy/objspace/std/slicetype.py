@@ -2,7 +2,7 @@ from pypy.interpreter import gateway
 from pypy.interpreter.typedef import GetSetProperty
 from pypy.objspace.std.stdtypedef import StdTypeDef, SMM
 from pypy.objspace.std.register_all import register_all
-from pypy.interpreter.error import OperationError
+from pypy.interpreter.error import OperationError, oefmt
 from rpython.rlib.objectmodel import specialize
 
 # indices multimehtod
@@ -23,9 +23,8 @@ def _eval_slice_index(space, w_int):
     except OperationError, err:
         if not err.match(space, space.w_TypeError):
             raise
-        raise OperationError(space.w_TypeError,
-                             space.wrap("slice indices must be integers or "
-                                        "None or have an __index__ method"))
+        raise oefmt(space.w_TypeError, "slice indices must be integers or "
+                    "None or have an __index__ method")
 
 def adapt_lower_bound(space, size, w_index):
     index = _eval_slice_index(space, w_index)
@@ -76,11 +75,9 @@ def descr__new__(space, w_slicetype, args_w):
     elif len(args_w) == 3:
         w_start, w_stop, w_step = args_w
     elif len(args_w) > 3:
-        raise OperationError(space.w_TypeError,
-                             space.wrap("slice() takes at most 3 arguments"))
+        raise oefmt(space.w_TypeError, "slice() takes at most 3 arguments")
     else:
-        raise OperationError(space.w_TypeError,
-                             space.wrap("slice() takes at least 1 argument"))
+        raise oefmt(space.w_TypeError, "slice() takes at least 1 argument")
     w_obj = space.allocate_instance(W_SliceObject, w_slicetype)
     W_SliceObject.__init__(w_obj, w_start, w_stop, w_step)
     return w_obj
@@ -101,8 +98,7 @@ def slicewprop(name):
     def fget(space, w_obj):
         from pypy.objspace.std.sliceobject import W_SliceObject
         if not isinstance(w_obj, W_SliceObject):
-            raise OperationError(space.w_TypeError,
-                                 space.wrap("descriptor is for 'slice'"))
+            raise oefmt(space.w_TypeError, "descriptor is for 'slice'")
         return getattr(w_obj, name)
     return GetSetProperty(fget)
 

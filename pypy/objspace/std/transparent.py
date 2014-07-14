@@ -39,8 +39,8 @@ type_cache = TypeCache()
 def setup(space):
     """Add proxy functions to the __pypy__ module."""
     w___pypy__ = space.getbuiltinmodule("__pypy__")
-    space.setattr(w___pypy__, space.wrap('tproxy'), space.wrap(app_proxy))
-    space.setattr(w___pypy__, space.wrap('get_tproxy_controller'),
+    space.setattr(w___pypy__, space.wrap(u'tproxy'), space.wrap(app_proxy))
+    space.setattr(w___pypy__, space.wrap(u'get_tproxy_controller'),
                   space.wrap(app_proxy_controller))
 
 
@@ -49,7 +49,7 @@ def proxy(space, w_type, w_controller):
 Return something that looks like it is of type typ. Its behaviour is
 completely controlled by the controller."""
     if not space.is_true(space.callable(w_controller)):
-        raise OperationError(space.w_TypeError, space.wrap("controller should be function"))
+        raise oefmt(space.w_TypeError, "controller should be function")
 
     if isinstance(w_type, W_TypeObject):
         if space.is_true(space.issubtype(w_type, space.gettypeobject(Function.typedef))):
@@ -65,7 +65,7 @@ completely controlled by the controller."""
         if w_type.instancetypedef is space.w_object.instancetypedef:
             return W_Transparent(space, w_type, w_controller)
     else:
-        raise OperationError(space.w_TypeError, space.wrap("type expected as first argument"))
+        raise oefmt(space.w_TypeError, "type expected as first argument")
     w_lookup = w_type
     for k, v in type_cache.cache:
         if w_lookup == k:

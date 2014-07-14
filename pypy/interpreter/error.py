@@ -454,12 +454,14 @@ def get_operrcls2(valuefmt):
 
 class OpErrFmtNoArgs(OperationError):
     def __init__(self, w_type, value):
+        rstring.check_ascii(value)
         self._value = value
         self.setup(w_type)
 
     def get_w_value(self, space):
         w_value = self._w_value
         if w_value is None:
+            rstring.check_ascii(self._value)
             self._w_value = w_value = space.wrap(self._value)
         return w_value
 

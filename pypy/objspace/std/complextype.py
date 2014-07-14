@@ -127,19 +127,18 @@ def descr__new__(space, w_complextype, w_real, w_imag=None):
     if space.isinstance_w(w_real, space.w_unicode):
         # a string argument
         if not noarg2:
-            raise OperationError(space.w_TypeError,
-                                 space.wrap("complex() can't take second arg"
-                                            " if first is a string"))
+            raise oefmt(space.w_TypeError,
+                        "complex() can't take second arg if first is a string")
         unistr = unicode_to_decimal_w(space, w_real)
         try:
             realstr, imagstr = _split_complex(unistr)
         except ValueError:
-            raise OperationError(space.w_ValueError, space.wrap(ERR_MALFORMED))
+            raise oefmt(space.w_ValueError, ERR_MALFORMED)
         try:
             realval = string_to_float(realstr)
             imagval = string_to_float(imagstr)
         except ParseStringError:
-            raise OperationError(space.w_ValueError, space.wrap(ERR_MALFORMED))
+            raise oefmt(space.w_ValueError, ERR_MALFORMED)
 
     else:
         # non-string arguments
@@ -189,9 +188,8 @@ def unpackcomplex(space, w_complex, strict_typing=True):
             return (space.float_w(w_z), 0.0)
         elif isinstance(w_z, W_ComplexObject):
             return (w_z.realval, w_z.imagval)
-        raise OperationError(space.w_TypeError,
-                             space.wrap("__complex__() must return"
-                                        " a complex number"))
+        raise oefmt(space.w_TypeError,
+                    "__complex__() must return a complex number")
 
     #
     # no '__complex__' method, so we assume it is a float,
@@ -214,8 +212,7 @@ def complexwprop(name, doc):
     def fget(space, w_obj):
         from pypy.objspace.std.complexobject import W_ComplexObject
         if not isinstance(w_obj, W_ComplexObject):
-            raise OperationError(space.w_TypeError,
-                                 space.wrap("descriptor is for 'complex'"))
+            raise oefmt(space.w_TypeError, "descriptor is for 'complex'")
         return space.newfloat(getattr(w_obj, name))
     return GetSetProperty(fget, doc=doc)
 

@@ -402,8 +402,8 @@ def pow__Float_Float_ANY(space, w_float1, w_float2, thirdArg):
     # a chance to give a result, and directly OperationError for errors
     # that we want to force to be reported to the user.
     if not space.is_w(thirdArg, space.w_None):
-        raise OperationError(space.w_TypeError, space.wrap(
-            "pow() 3rd argument not allowed unless all arguments are integers"))
+        raise oefmt(space.w_TypeError, "pow() 3rd argument not allowed "
+                    "unless all arguments are integers")
     x = w_float1.floatval
     y = w_float2.floatval
 
@@ -466,9 +466,8 @@ def _pow(space, x, y):
 
     if x == 0.0:
         if y < 0.0:
-            raise OperationError(space.w_ZeroDivisionError,
-                                 space.wrap("0.0 cannot be raised to "
-                                            "a negative power"))
+            raise oefmt(space.w_ZeroDivisionError,
+                        "0.0 cannot be raised to a negative power")
 
     negate_result = False
     # special case: "(-1.0) ** bignum" should not raise PowDomainError,
@@ -499,8 +498,7 @@ def _pow(space, x, y):
         raise FailedToImplementArgs(space.w_OverflowError,
                                     space.wrap("float power"))
     except ValueError:
-        raise OperationError(space.w_ValueError,
-                             space.wrap("float power"))
+        raise oefmt(space.w_ValueError, "float power")
 
     if negate_result:
         z = -z
@@ -527,11 +525,11 @@ def float_as_integer_ratio__Float(space, w_float):
     try:
         num, den = float_as_rbigint_ratio(value)
     except OverflowError:
-        w_msg = space.wrap("cannot pass infinity to as_integer_ratio()")
-        raise OperationError(space.w_OverflowError, w_msg)
+        raise oefmt(space.w_OverflowError,
+                    "cannot pass infinity to as_integer_ratio()")
     except ValueError:
-        w_msg = space.wrap("cannot pass nan to as_integer_ratio()")
-        raise OperationError(space.w_ValueError, w_msg)
+        raise oefmt(space.w_ValueError,
+                    "cannot pass nan to as_integer_ratio()")
 
     w_num = space.newlong_from_rbigint(num)
     w_den = space.newlong_from_rbigint(den)

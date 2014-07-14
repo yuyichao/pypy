@@ -1,6 +1,6 @@
 """Slice object"""
 
-from pypy.interpreter.error import OperationError
+from pypy.interpreter.error import OperationError, oefmt
 from pypy.interpreter import gateway
 from pypy.objspace.std.model import registerimplementation, W_Object
 from pypy.objspace.std.register_all import register_all
@@ -27,8 +27,7 @@ class W_SliceObject(W_Object):
         else:
             step = _eval_slice_index(space, w_slice.w_step)
             if step == 0:
-                raise OperationError(space.w_ValueError,
-                                     space.wrap("slice step cannot be zero"))
+                raise oefmt(space.w_ValueError, "slice step cannot be zero")
         if space.is_w(w_slice.w_start, space.w_None):
             if step < 0:
                 start = length - 1

@@ -147,8 +147,8 @@ class W_MemoryView(W_Root):
 
     def _check_released(self, space):
         if self.buf is None:
-            raise OperationError(space.w_ValueError, space.wrap(
-                    "operation forbidden on released memoryview object"))
+            raise oefmt(space.w_ValueError,
+                        "operation forbidden on released memoryview object")
 
     def descr_enter(self, space):
         self._check_released(space)

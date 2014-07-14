@@ -1,6 +1,6 @@
 import math
 
-from pypy.interpreter.error import OperationError
+from pypy.interpreter.error import OperationError, oefmt
 from pypy.objspace.std import newformat
 from pypy.objspace.std.intobject import W_IntObject
 from pypy.objspace.std.model import registerimplementation, W_Object
@@ -105,7 +105,8 @@ class W_ComplexObject(W_AbstractComplexObject):
         return w_result
 
     def int(self, space):
-        raise OperationError(space.w_TypeError, space.wrap("can't convert complex to int; use int(abs(z))"))
+        raise oefmt(space.w_TypeError,
+                    "can't convert complex to int; use int(abs(z))")
 
 registerimplementation(W_ComplexObject)
 
@@ -146,13 +147,13 @@ def div__Complex_Complex(space, w_complex1, w_complex2):
     try:
         return w_complex1.div(w_complex2)
     except ZeroDivisionError, e:
-        raise OperationError(space.w_ZeroDivisionError, space.wrap(str(e)))
+        raise oefmt(space.w_ZeroDivisionError, 'complex division by zero')
 
 truediv__Complex_Complex = div__Complex_Complex
 
 def pow__Complex_Complex_ANY(space, w_complex, w_exponent, thirdArg):
     if not space.is_w(thirdArg, space.w_None):
-        raise OperationError(space.w_ValueError, space.wrap('complex modulo'))
+        raise oefmt(space.w_ValueError, 'complex modulo')
     try:
         r = w_exponent.realval
         if w_exponent.imagval == 0.0 and -100.0 <= r <= 100.0 and r == int(r):
@@ -160,9 +161,10 @@ def pow__Complex_Complex_ANY(space, w_complex, w_exponent, thirdArg):
         else:
             w_p = w_complex.pow(w_exponent)
     except ZeroDivisionError:
-        raise OperationError(space.w_ZeroDivisionError, space.wrap("0.0 to a negative or complex power"))
+        raise oefmt(space.w_ZeroDivisionError,
+                    "0.0 to a negative or complex power")
     except OverflowError:
-        raise OperationError(space.w_OverflowError, space.wrap("complex exponentiation"))
+        raise oefmt(space.w_OverflowError, "complex exponentiation")
     return w_p
 
 def neg__Complex(space, w_complex):
@@ -175,7 +177,7 @@ def abs__Complex(space, w_complex):
     try:
         return space.newfloat(math.hypot(w_complex.realval, w_complex.imagval))
     except OverflowError, e:
-        raise OperationError(space.w_OverflowError, space.wrap(str(e)))
+        raise oefmt(space.w_OverflowError, 'absolute value too large')
 
 def eq__Complex_Complex(space, w_complex1, w_complex2):
     return space.newbool((w_complex1.realval == w_complex2.realval) and
@@ -218,7 +220,8 @@ def nonzero__Complex(space, w_complex):
                          (w_complex.imagval != 0.0))
 
 def float__Complex(space, w_complex):
-    raise OperationError(space.w_TypeError, space.wrap("can't convert complex to float; use abs(z)"))
+    raise oefmt(space.w_TypeError,
+                "can't convert complex to float; use abs(z)")
 
 def complex_conjugate__Complex(space, w_self):
     #w_real = space.call_function(space.w_float,space.wrap(w_self.realval))
