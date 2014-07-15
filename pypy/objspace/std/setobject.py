@@ -1,5 +1,5 @@
 from pypy.interpreter import gateway
-from pypy.interpreter.error import OperationError
+from pypy.interpreter.error import OperationError, oefmt
 from pypy.interpreter.signature import Signature
 from pypy.interpreter.baseobjspace import W_Root
 from pypy.objspace.std.bytesobject import W_BytesObject
@@ -819,8 +819,7 @@ class EmptySetStrategy(SetStrategy):
         return EmptyIteratorImplementation(self.space, self, w_set)
 
     def popitem(self, w_set):
-        raise OperationError(self.space.w_KeyError,
-                                self.space.wrap('pop from an empty set'))
+        raise oefmt(self.space.w_KeyError, 'pop from an empty set')
 
 
 class AbstractUnwrappedSetStrategy(object):
@@ -1171,8 +1170,7 @@ class AbstractUnwrappedSetStrategy(object):
             result = storage.popitem()
         except KeyError:
             # strategy may still be the same even if dict is empty
-            raise OperationError(self.space.w_KeyError,
-                            self.space.wrap('pop from an empty set'))
+            raise oefmt(self.space.w_KeyError, 'pop from an empty set')
         return self.wrap(result[0])
 
 
@@ -1394,8 +1392,8 @@ class IteratorImplementation(object):
             return None
         if self.len != self.setimplementation.length():
             self.len = -1   # Make this error state sticky
-            raise OperationError(self.space.w_RuntimeError,
-                     self.space.wrap("set changed size during iteration"))
+            raise oefmt(self.space.w_RuntimeError,
+                        "set changed size during iteration")
         # look for the next entry
         if self.pos < self.len:
             result = self.next_entry()
@@ -1408,8 +1406,8 @@ class IteratorImplementation(object):
                 # We try to explicitly look it up in the set.
                 if not self.setimplementation.has_key(result):
                     self.len = -1   # Make this error state sticky
-                    raise OperationError(self.space.w_RuntimeError,
-                        self.space.wrap("dictionary changed during iteration"))
+                    raise oefmt(self.space.w_RuntimeError,
+                                "dictionary changed during iteration")
                 return result
         # no more entries
         self.setimplementation = None

@@ -17,8 +17,8 @@ def raise_attriberr(space, w_obj, name):
 def check_string(space, w_obj):
     if not (space.isinstance_w(w_obj, space.w_str) or
             space.isinstance_w(w_obj, space.w_unicode)):
-        raise OperationError(space.w_TypeError, space.wrap(
-                'AST string must be of type str or unicode'))
+        raise oefmt(space.w_TypeError,
+                    'AST string must be of type str or unicode')
     return w_obj
 
 
@@ -116,8 +116,8 @@ def get_AST_new(node_class):
 def AST_init(space, w_self, __args__):
     args_w, kwargs_w = __args__.unpack()
     if args_w and len(args_w) != 0:
-        w_err = space.wrap("_ast.AST constructor takes 0 positional arguments")
-        raise OperationError(space.w_TypeError, w_err)
+        raise oefmt(space.w_TypeError,
+                    "_ast.AST constructor takes 0 positional arguments")
     for field, w_value in kwargs_w.iteritems():
         space.setattr(w_self, space.wrap(field), w_value)
 
@@ -1862,8 +1862,7 @@ class Const(expr):
 class expr_context(AST):
 
     def to_simple_int(self, space):
-        w_msg = space.wrap("not a valid expr_context")
-        raise OperationError(space.w_TypeError, w_msg)
+        raise oefmt(space.w_TypeError, "not a valid expr_context")
 
 class _Load(expr_context):
 
@@ -2008,8 +2007,7 @@ class Index(slice):
 class boolop(AST):
 
     def to_simple_int(self, space):
-        w_msg = space.wrap("not a valid boolop")
-        raise OperationError(space.w_TypeError, w_msg)
+        raise oefmt(space.w_TypeError, "not a valid boolop")
 
 class _And(boolop):
 
@@ -2032,8 +2030,7 @@ boolop_to_class = [
 class operator(AST):
 
     def to_simple_int(self, space):
-        w_msg = space.wrap("not a valid operator")
-        raise OperationError(space.w_TypeError, w_msg)
+        raise oefmt(space.w_TypeError, "not a valid operator")
 
 class _Add(operator):
 
@@ -2126,8 +2123,7 @@ operator_to_class = [
 class unaryop(AST):
 
     def to_simple_int(self, space):
-        w_msg = space.wrap("not a valid unaryop")
-        raise OperationError(space.w_TypeError, w_msg)
+        raise oefmt(space.w_TypeError, "not a valid unaryop")
 
 class _Invert(unaryop):
 
@@ -2164,8 +2160,7 @@ unaryop_to_class = [
 class cmpop(AST):
 
     def to_simple_int(self, space):
-        w_msg = space.wrap("not a valid cmpop")
-        raise OperationError(space.w_TypeError, w_msg)
+        raise oefmt(space.w_TypeError, "not a valid cmpop")
 
 class _Eq(cmpop):
 
@@ -2913,8 +2908,8 @@ def Module_init(space, w_self, __args__):
     args_w, kwargs_w = __args__.unpack()
     if args_w:
         if len(args_w) != 1:
-            w_err = space.wrap("Module constructor takes either 0 or 1 positional argument")
-            raise OperationError(space.w_TypeError, w_err)
+            raise oefmt(space.w_TypeError, "Module constructor takes either "
+                        "0 or 1 positional argument")
         i = 0
         for field in _Module_field_unroller:
             space.setattr(w_self, space.wrap(field), args_w[i])
@@ -2961,8 +2956,8 @@ def Interactive_init(space, w_self, __args__):
     args_w, kwargs_w = __args__.unpack()
     if args_w:
         if len(args_w) != 1:
-            w_err = space.wrap("Interactive constructor takes either 0 or 1 positional argument")
-            raise OperationError(space.w_TypeError, w_err)
+            raise oefmt(space.w_TypeError, "Interactive constructor takes "
+                        "either 0 or 1 positional argument")
         i = 0
         for field in _Interactive_field_unroller:
             space.setattr(w_self, space.wrap(field), args_w[i])
@@ -3015,8 +3010,8 @@ def Expression_init(space, w_self, __args__):
     args_w, kwargs_w = __args__.unpack()
     if args_w:
         if len(args_w) != 1:
-            w_err = space.wrap("Expression constructor takes either 0 or 1 positional argument")
-            raise OperationError(space.w_TypeError, w_err)
+            raise oefmt(space.w_TypeError, "Expression constructor takes "
+                        "either 0 or 1 positional argument")
         i = 0
         for field in _Expression_field_unroller:
             space.setattr(w_self, space.wrap(field), args_w[i])
@@ -3063,8 +3058,8 @@ def Suite_init(space, w_self, __args__):
     args_w, kwargs_w = __args__.unpack()
     if args_w:
         if len(args_w) != 1:
-            w_err = space.wrap("Suite constructor takes either 0 or 1 positional argument")
-            raise OperationError(space.w_TypeError, w_err)
+            raise oefmt(space.w_TypeError, "Suite constructor takes either "
+                        "0 or 1 positional argument")
         i = 0
         for field in _Suite_field_unroller:
             space.setattr(w_self, space.wrap(field), args_w[i])
@@ -3286,8 +3281,8 @@ def FunctionDef_init(space, w_self, __args__):
     args_w, kwargs_w = __args__.unpack()
     if args_w:
         if len(args_w) != 5:
-            w_err = space.wrap("FunctionDef constructor takes either 0 or 5 positional arguments")
-            raise OperationError(space.w_TypeError, w_err)
+            raise oefmt(space.w_TypeError, "FunctionDef constructor takes "
+                        "either 0 or 5 positional arguments")
         i = 0
         for field in _FunctionDef_field_unroller:
             space.setattr(w_self, space.wrap(field), args_w[i])
@@ -3495,8 +3490,8 @@ def ClassDef_init(space, w_self, __args__):
     args_w, kwargs_w = __args__.unpack()
     if args_w:
         if len(args_w) != 7:
-            w_err = space.wrap("ClassDef constructor takes either 0 or 7 positional arguments")
-            raise OperationError(space.w_TypeError, w_err)
+            raise oefmt(space.w_TypeError, "ClassDef constructor "
+                        "takes either 0 or 7 positional arguments")
         i = 0
         for field in _ClassDef_field_unroller:
             space.setattr(w_self, space.wrap(field), args_w[i])
@@ -3555,8 +3550,8 @@ def Return_init(space, w_self, __args__):
     args_w, kwargs_w = __args__.unpack()
     if args_w:
         if len(args_w) != 1:
-            w_err = space.wrap("Return constructor takes either 0 or 1 positional argument")
-            raise OperationError(space.w_TypeError, w_err)
+            raise oefmt(space.w_TypeError, "Return constructor takes either "
+                        "0 or 1 positional argument")
         i = 0
         for field in _Return_field_unroller:
             space.setattr(w_self, space.wrap(field), args_w[i])
@@ -3603,8 +3598,8 @@ def Delete_init(space, w_self, __args__):
     args_w, kwargs_w = __args__.unpack()
     if args_w:
         if len(args_w) != 1:
-            w_err = space.wrap("Delete constructor takes either 0 or 1 positional argument")
-            raise OperationError(space.w_TypeError, w_err)
+            raise oefmt(space.w_TypeError, "Delete constructor takes either "
+                        "0 or 1 positional argument")
         i = 0
         for field in _Delete_field_unroller:
             space.setattr(w_self, space.wrap(field), args_w[i])
@@ -3680,8 +3675,8 @@ def Assign_init(space, w_self, __args__):
     args_w, kwargs_w = __args__.unpack()
     if args_w:
         if len(args_w) != 2:
-            w_err = space.wrap("Assign constructor takes either 0 or 2 positional arguments")
-            raise OperationError(space.w_TypeError, w_err)
+            raise oefmt(space.w_TypeError, "Assign constructor takes "
+                        "either 0 or 2 positional arguments")
         i = 0
         for field in _Assign_field_unroller:
             space.setattr(w_self, space.wrap(field), args_w[i])
@@ -3793,8 +3788,8 @@ def AugAssign_init(space, w_self, __args__):
     args_w, kwargs_w = __args__.unpack()
     if args_w:
         if len(args_w) != 3:
-            w_err = space.wrap("AugAssign constructor takes either 0 or 3 positional arguments")
-            raise OperationError(space.w_TypeError, w_err)
+            raise oefmt(space.w_TypeError, "AugAssign constructor takes "
+                        "either 0 or 3 positional arguments")
         i = 0
         for field in _AugAssign_field_unroller:
             space.setattr(w_self, space.wrap(field), args_w[i])
@@ -3924,8 +3919,8 @@ def For_init(space, w_self, __args__):
     args_w, kwargs_w = __args__.unpack()
     if args_w:
         if len(args_w) != 4:
-            w_err = space.wrap("For constructor takes either 0 or 4 positional arguments")
-            raise OperationError(space.w_TypeError, w_err)
+            raise oefmt(space.w_TypeError, "For constructor takes either "
+                        "0 or 4 positional arguments")
         i = 0
         for field in _For_field_unroller:
             space.setattr(w_self, space.wrap(field), args_w[i])
@@ -4027,8 +4022,8 @@ def While_init(space, w_self, __args__):
     args_w, kwargs_w = __args__.unpack()
     if args_w:
         if len(args_w) != 3:
-            w_err = space.wrap("While constructor takes either 0 or 3 positional arguments")
-            raise OperationError(space.w_TypeError, w_err)
+            raise oefmt(space.w_TypeError, "While constructor takes either "
+                        "0 or 3 positional arguments")
         i = 0
         for field in _While_field_unroller:
             space.setattr(w_self, space.wrap(field), args_w[i])
@@ -4129,8 +4124,8 @@ def If_init(space, w_self, __args__):
     args_w, kwargs_w = __args__.unpack()
     if args_w:
         if len(args_w) != 3:
-            w_err = space.wrap("If constructor takes either 0 or 3 positional arguments")
-            raise OperationError(space.w_TypeError, w_err)
+            raise oefmt(space.w_TypeError, "If constructor takes either "
+                        "0 or 3 positional arguments")
         i = 0
         for field in _If_field_unroller:
             space.setattr(w_self, space.wrap(field), args_w[i])
@@ -4237,8 +4232,8 @@ def With_init(space, w_self, __args__):
     args_w, kwargs_w = __args__.unpack()
     if args_w:
         if len(args_w) != 3:
-            w_err = space.wrap("With constructor takes either 0 or 3 positional arguments")
-            raise OperationError(space.w_TypeError, w_err)
+            raise oefmt(space.w_TypeError, "With constructor takes either "
+                        "0 or 3 positional arguments")
         i = 0
         for field in _With_field_unroller:
             space.setattr(w_self, space.wrap(field), args_w[i])
@@ -4322,8 +4317,8 @@ def Raise_init(space, w_self, __args__):
     args_w, kwargs_w = __args__.unpack()
     if args_w:
         if len(args_w) != 2:
-            w_err = space.wrap("Raise constructor takes either 0 or 2 positional arguments")
-            raise OperationError(space.w_TypeError, w_err)
+            raise oefmt(space.w_TypeError, "Raise constructor takes either "
+                        "0 or 2 positional arguments")
         i = 0
         for field in _Raise_field_unroller:
             space.setattr(w_self, space.wrap(field), args_w[i])
@@ -4417,8 +4412,8 @@ def TryExcept_init(space, w_self, __args__):
     args_w, kwargs_w = __args__.unpack()
     if args_w:
         if len(args_w) != 3:
-            w_err = space.wrap("TryExcept constructor takes either 0 or 3 positional arguments")
-            raise OperationError(space.w_TypeError, w_err)
+            raise oefmt(space.w_TypeError, "TryExcept constructor takes "
+                        "either 0 or 3 positional arguments")
         i = 0
         for field in _TryExcept_field_unroller:
             space.setattr(w_self, space.wrap(field), args_w[i])
@@ -4490,8 +4485,8 @@ def TryFinally_init(space, w_self, __args__):
     args_w, kwargs_w = __args__.unpack()
     if args_w:
         if len(args_w) != 2:
-            w_err = space.wrap("TryFinally constructor takes either 0 or 2 positional arguments")
-            raise OperationError(space.w_TypeError, w_err)
+            raise oefmt(space.w_TypeError, "TryFinally constructor takes "
+                        "either 0 or 2 positional arguments")
         i = 0
         for field in _TryFinally_field_unroller:
             space.setattr(w_self, space.wrap(field), args_w[i])
@@ -4574,8 +4569,8 @@ def Assert_init(space, w_self, __args__):
     args_w, kwargs_w = __args__.unpack()
     if args_w:
         if len(args_w) != 2:
-            w_err = space.wrap("Assert constructor takes either 0 or 2 positional arguments")
-            raise OperationError(space.w_TypeError, w_err)
+            raise oefmt(space.w_TypeError, "Assert constructor takes "
+                        "either 0 or 2 positional arguments")
         i = 0
         for field in _Assert_field_unroller:
             space.setattr(w_self, space.wrap(field), args_w[i])
@@ -4623,8 +4618,8 @@ def Import_init(space, w_self, __args__):
     args_w, kwargs_w = __args__.unpack()
     if args_w:
         if len(args_w) != 1:
-            w_err = space.wrap("Import constructor takes either 0 or 1 positional argument")
-            raise OperationError(space.w_TypeError, w_err)
+            raise oefmt(space.w_TypeError, "Import constructor takes "
+                        "either 0 or 1 positional argument")
         i = 0
         for field in _Import_field_unroller:
             space.setattr(w_self, space.wrap(field), args_w[i])
@@ -4732,8 +4727,8 @@ def ImportFrom_init(space, w_self, __args__):
     args_w, kwargs_w = __args__.unpack()
     if args_w:
         if len(args_w) != 3:
-            w_err = space.wrap("ImportFrom constructor takes either 0 or 3 positional arguments")
-            raise OperationError(space.w_TypeError, w_err)
+            raise oefmt(space.w_TypeError, "ImportFrom constructor takes "
+                        "either 0 or 3 positional arguments")
         i = 0
         for field in _ImportFrom_field_unroller:
             space.setattr(w_self, space.wrap(field), args_w[i])
@@ -4782,8 +4777,8 @@ def Global_init(space, w_self, __args__):
     args_w, kwargs_w = __args__.unpack()
     if args_w:
         if len(args_w) != 1:
-            w_err = space.wrap("Global constructor takes either 0 or 1 positional argument")
-            raise OperationError(space.w_TypeError, w_err)
+            raise oefmt(space.w_TypeError, "Global constructor takes either "
+                        "0 or 1 positional argument")
         i = 0
         for field in _Global_field_unroller:
             space.setattr(w_self, space.wrap(field), args_w[i])
@@ -4830,8 +4825,8 @@ def Nonlocal_init(space, w_self, __args__):
     args_w, kwargs_w = __args__.unpack()
     if args_w:
         if len(args_w) != 1:
-            w_err = space.wrap("Nonlocal constructor takes either 0 or 1 positional argument")
-            raise OperationError(space.w_TypeError, w_err)
+            raise oefmt(space.w_TypeError, "Nonlocal constructor takes "
+                        "either 0 or 1 positional argument")
         i = 0
         for field in _Nonlocal_field_unroller:
             space.setattr(w_self, space.wrap(field), args_w[i])
@@ -4884,8 +4879,8 @@ def Expr_init(space, w_self, __args__):
     args_w, kwargs_w = __args__.unpack()
     if args_w:
         if len(args_w) != 1:
-            w_err = space.wrap("Expr constructor takes either 0 or 1 positional argument")
-            raise OperationError(space.w_TypeError, w_err)
+            raise oefmt(space.w_TypeError, "Expr constructor takes either "
+                        "0 or 1 positional argument")
         i = 0
         for field in _Expr_field_unroller:
             space.setattr(w_self, space.wrap(field), args_w[i])

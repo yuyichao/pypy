@@ -341,8 +341,7 @@ def _builduserclswithfeature(config, supercls, *features):
 # the translated code size
 def check_new_dictionary(space, w_dict):
     if not space.isinstance_w(w_dict, space.w_dict):
-        raise OperationError(space.w_TypeError,
-                             space.wrap(u"setting dictionary to a non-dict"))
+        raise oefmt(space.w_TypeError, "setting dictionary to a non-dict")
     from pypy.objspace.std import dictmultiobject
     assert isinstance(w_dict, dictmultiobject.W_DictMultiObject)
     return w_dict
@@ -407,8 +406,7 @@ def _make_descr_typecheck_wrapper(tag, func, extraargs, cls, use_closure):
 
 def unknown_objclass_getter(space):
     # NB. this is an AttributeError to make inspect.py happy
-    raise OperationError(space.w_AttributeError,
-                         space.wrap(u"generic property has no __objclass__"))
+    raise oefmt(space.w_AttributeError, "generic property has no __objclass__")
 
 @specialize.arg(0)
 def make_objclass_getter(tag, func, cls):
@@ -482,8 +480,7 @@ class GetSetProperty(W_Root):
         Change the value of the property of the given obj."""
         fset = self.fset
         if fset is None:
-            raise OperationError(space.w_AttributeError,
-                                 space.wrap(u"readonly attribute"))
+            raise oefmt(space.w_AttributeError, "readonly attribute")
         try:
             fset(self, space, w_obj, w_value)
         except DescrMismatch:
@@ -498,8 +495,7 @@ class GetSetProperty(W_Root):
         Delete the value of the property from the given obj."""
         fdel = self.fdel
         if fdel is None:
-            raise OperationError(space.w_AttributeError,
-                                 space.wrap(u"cannot delete attribute"))
+            raise oefmt(space.w_AttributeError, "cannot delete attribute")
         try:
             fdel(self, space, w_obj)
         except DescrMismatch:
@@ -585,8 +581,7 @@ class Member(W_Root):
             if w_result is None:
                 check_utf8(self.name)
                 # XXX better message
-                raise OperationError(space.w_AttributeError,
-                                     space.wrap(self.name.decode('utf-8')))
+                raise oefmt(space.w_AttributeError, "%8", self.name)
             return w_result
 
     def descr_member_set(self, space, w_obj, w_value):
@@ -603,8 +598,7 @@ class Member(W_Root):
         if not success:
             check_utf8(self.name)
             # XXX better message
-            raise OperationError(space.w_AttributeError,
-                                 space.wrap(self.name.decode('utf-8')))
+            raise oefmt(space.w_AttributeError, "%8", self.name)
 
 Member.typedef = TypeDef(
     "member_descriptor",

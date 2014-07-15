@@ -155,7 +155,7 @@ def gettypeerror(space, operatorsymbol, *args_w):
 
 def make_perform_trampoline(prefix, exprargs, expr, miniglobals,  multimethod, selfindex=0,
                             allow_NotImplemented_results=False):
-    """NOT_RPYTHON"""    
+    """NOT_RPYTHON"""
     # mess to figure out how to put a gateway around executing expr
     argnames = ['_%d'%(i+1) for i in range(multimethod.arity)]
     explicit_argnames = multimethod.extras.get('argnames', [])
@@ -172,7 +172,7 @@ def make_perform_trampoline(prefix, exprargs, expr, miniglobals,  multimethod, s
 
     miniglobals.update({ 'OperationError': OperationError,
                          'gettypeerror': gettypeerror})
-    
+
     app_defaults = multimethod.extras.get('defaults', ())
     i = len(argnames) - len(app_defaults)
     wrapper_signature = wrapper_arglist[:]
@@ -222,7 +222,7 @@ def make_perform_trampoline(prefix, exprargs, expr, miniglobals,  multimethod, s
                       return w_res
 """        % (prefix, wrapper_sig, renaming, expr,
               multimethod.operatorsymbol, ', '.join(solid_arglist))
-    exec compile2(code, '', 'exec') in miniglobals 
+    exec compile2(code, '', 'exec') in miniglobals
     func = miniglobals["%s_perform_call" % prefix]
     if unwrap_spec_kwds:
         func = gateway.unwrap_spec(**unwrap_spec_kwds)(func)

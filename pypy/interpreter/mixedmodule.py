@@ -1,7 +1,7 @@
 from pypy.interpreter.module import Module
 from pypy.interpreter.function import Function, BuiltinFunction
 from pypy.interpreter import gateway
-from pypy.interpreter.error import OperationError
+from pypy.interpreter.error import OperationError, oefmt
 from pypy.interpreter.baseobjspace import W_Root
 
 from rpython.rlib import rstring
@@ -76,7 +76,7 @@ class MixedModule(Module):
         space = self.space
         w_value = self.getdictvalue(space, name)
         if w_value is None:
-            raise OperationError(space.w_AttributeError, space.wrap(name))
+            raise oefmt(space.w_AttributeError, "%8", name)
         return w_value
 
     def call(self, name, *args_w):

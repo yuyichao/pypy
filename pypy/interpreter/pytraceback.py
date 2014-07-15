@@ -2,6 +2,7 @@ from pypy.interpreter import baseobjspace
 from pypy.interpreter.error import OperationError
 
 from rpython.tool.error import offset2lineno
+from rpython.rlib.rstring import check_ascii
 
 
 class PyTraceback(baseobjspace.W_Root):
@@ -62,6 +63,8 @@ def record_application_traceback(space, operror, frame, last_instruction):
 
 def check_traceback(space, w_tb, msg):
     from pypy.interpreter.typedef import PyTraceback
-    if w_tb is None or not space.isinstance_w(w_tb, space.gettypeobject(PyTraceback.typedef)):
+    if (w_tb is None or
+        not space.isinstance_w(w_tb, space.gettypeobject(PyTraceback.typedef))):
+        check_ascii(msg)
         raise OperationError(space.w_TypeError, space.wrap(msg))
     return w_tb

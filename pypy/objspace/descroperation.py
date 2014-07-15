@@ -285,8 +285,7 @@ class DescrOperation(object):
         w_iter = space.get_and_call_function(w_descr, w_obj)
         w_next = space.lookup(w_iter, '__next__')
         if w_next is None:
-            raise OperationError(space.w_TypeError,
-                                 space.wrap("iter() returned non-iterator"))
+            raise oefmt(space.w_TypeError, "iter() returned non-iterator")
         return w_iter
 
     def next(space, w_obj):
@@ -361,8 +360,7 @@ class DescrOperation(object):
             if _check_notimplemented(space, w_res):
                 return w_res
 
-        raise OperationError(space.w_TypeError,
-                space.wrap("operands do not support **"))
+        raise oefmt(space.w_TypeError, "operands do not support **")
 
     def inplace_pow(space, w_lhs, w_rhs):
         w_impl = space.lookup(w_lhs, '__ipow__')
@@ -415,8 +413,8 @@ class DescrOperation(object):
             except OperationError, e:
                 if not e.match(space, space.w_StopIteration):
                     raise
-                msg = "sequence.index(x): x not in sequence"
-                raise OperationError(space.w_ValueError, space.wrap(msg))
+                raise oefmt(space.w_ValueError,
+                            "sequence.index(x): x not in sequence")
             if space.eq_w(w_next, w_item):
                 return space.wrap(index)
             index += 1
@@ -466,8 +464,7 @@ class DescrOperation(object):
     def issubtype_allow_override(space, w_sub, w_type):
         w_check = space.lookup(w_type, "__subclasscheck__")
         if w_check is None:
-            raise OperationError(space.w_TypeError,
-                                 space.wrap("issubclass not supported here"))
+            raise oefmt(space.w_TypeError, "issubclass not supported here")
         return space.get_and_call_function(w_check, w_type, w_sub)
 
     def isinstance_allow_override(space, w_inst, w_type):
